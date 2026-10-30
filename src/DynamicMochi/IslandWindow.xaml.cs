@@ -101,20 +101,30 @@ public partial class IslandWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _theme = Themes.Find(_settings.Theme);
-        ApplyTheme(_theme, animate: false);
-        BuildThemeCards();
-        SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: false);
-        SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate: false);
-        ShowTrack(null);
-        SelectTab("home", animate: false);
-        _loading = false;
+        try
+        {
+            _theme = Themes.Find(_settings.Theme);
+            ApplyTheme(_theme, animate: false);
+            BuildThemeCards();
+            SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: false);
+            SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate: false);
+            ShowTrack(null);
+            SelectTab("home", animate: false);
+        }
+        catch (Exception ex)
+        {
+            Log.Write("startup: " + ex);
+        }
+        finally
+        {
+            _loading = false;
 
-        // appear from a point
-        var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
-        var grow = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450)) { EasingFunction = spring };
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+            // appear from a point; must run even if setup failed, otherwise the island stays invisible
+            var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
+            var grow = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450)) { EasingFunction = spring };
+            RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
+            RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+        }
 
         await _media.InitAsync();
         _uiTimer.Start();
@@ -148,6 +158,13 @@ public partial class IslandWindow : Window
         void Set(string key, Color c)
         {
             var b = _brushes[key];
+            if (b.IsFrozen)
+            {
+                // WPF freezes brushes that end up in styles/templates; swap in a fresh one
+                b = new SolidColorBrush(b.Color);
+                _brushes[key] = b;
+                Resources[key] = b;
+            }
             if (animate) b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(c, dur));
             else { b.BeginAnimation(SolidColorBrush.ColorProperty, null); b.Color = c; }
         }
