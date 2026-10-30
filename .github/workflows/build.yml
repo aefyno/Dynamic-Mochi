@@ -19,7 +19,7 @@ jobs:
       - name: Build
         run: dotnet build src/DynamicMochi/DynamicMochi.csproj -c Release
       - name: Publish
-        run: dotnet publish src/DynamicMochi/DynamicMochi.csproj -c Release -r win-x64 --self-contained false -o publish
+        run: dotnet publish src/DynamicMochi/DynamicMochi.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish
       - uses: actions/upload-artifact@v4
         with:
           name: DynamicMochi-win-x64
@@ -34,4 +34,4 @@ jobs:
           $tag = "build-$branch"
           Compress-Archive -Path publish\* -DestinationPath DynamicMochi-win-x64.zip
           gh release delete $tag --yes --cleanup-tag 2>$null
-          gh release create $tag DynamicMochi-win-x64.zip --prerelease --target "${{ github.sha }}" --title "Latest build ($branch)" --notes "Automatic build of ${{ github.sha }}. Requires .NET 8 Desktop Runtime."
+          gh release create $tag DynamicMochi-win-x64.zip --prerelease --target "${{ github.sha }}" --title "Latest build ($branch)" --notes "Automatic build of ${{ github.sha }}. Single self-contained exe, no .NET install needed."

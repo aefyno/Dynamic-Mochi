@@ -18,7 +18,7 @@ Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 dotnet run --project src/DynamicMochi
 ```
 
-Prebuilt binaries are attached to every CI run (Actions → latest successful run → `DynamicMochi-win-x64`). They need the .NET 8 Desktop Runtime.
+Prebuilt binaries are attached to every CI run (Actions → latest successful run → `DynamicMochi-win-x64`). They are a single self-contained exe, no .NET install needed.
 
 ## Stack
 
