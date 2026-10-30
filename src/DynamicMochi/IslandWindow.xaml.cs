@@ -155,18 +155,18 @@ public partial class IslandWindow : Window
         _theme = t;
         var dur = TimeSpan.FromMilliseconds(animate ? 250 : 0);
 
-        // Theme brushes are never mutated in place. WPF freezes a freezable resource the first time
-        // a style or template resolves it (if it has no running animation), and a frozen brush
-        // throws on BeginAnimation or on setting Color. So each change builds a fresh brush,
-        // starts its animation before anyone can see it, and swaps it into Resources;
-        // every {DynamicResource} / SetResourceReference picks up the new instance.
         void Set(string key, Color c)
         {
-            var from = _brushes.TryGetValue(key, out var old) ? old.Color : c;
-            var b = new SolidColorBrush(animate ? from : c);
-            if (animate) b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(from, c, dur));
-            _brushes[key] = b;
-            Resources[key] = b;
+            var b = _brushes[key];
+            if (b.IsFrozen)
+            {
+                // WPF freezes brushes that end up in styles/templates; swap in a fresh one
+                b = new SolidColorBrush(b.Color);
+                _brushes[key] = b;
+                Resources[key] = b;
+            }
+            if (animate) b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(c, dur));
+            else { b.BeginAnimation(SolidColorBrush.ColorProperty, null); b.Color = c; }
         }
         void SetStop(GradientStop s, Color c)
         {
