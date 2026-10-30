@@ -12,7 +12,8 @@ public sealed record TrackSnapshot(
     double PositionSec,
     double DurationSec,
     DateTime PositionStampUtc,
-    byte[]? Thumbnail)
+    byte[]? Thumbnail,
+    string Source)
 {
     public string Key => Title + "|" + Artist;
 
@@ -77,6 +78,7 @@ public sealed class MediaService
         // some apps don't set LastUpdatedTime
         if (stamp.Year < 2000 || stamp > DateTime.UtcNow) stamp = DateTime.UtcNow;
 
+        string source = SourceName(session.SourceAppUserModelId);
         string key = props.Title + "|" + props.Artist;
         if (key != _thumbKey || _thumb == null)
         {
@@ -84,7 +86,26 @@ public sealed class MediaService
             _thumb = await ReadThumbnailAsync(props.Thumbnail);
         }
 
-        return new TrackSnapshot(props.Title, props.Artist ?? "", playing, position, duration, stamp, _thumb);
+        return new TrackSnapshot(props.Title, props.Artist ?? "", playing, position, duration, stamp, _thumb, source);
+    }
+
+    /// <summary>Human-readable player name from the SMTC source id; empty when unknown.</summary>
+    private static string SourceName(string? appId)
+    {
+        if (string.IsNullOrEmpty(appId)) return "";
+        string id = appId.ToLowerInvariant();
+        if (id.Contains("spotify")) return "Spotify";
+        if (id.Contains("chrome")) return "Chrome";
+        if (id.Contains("msedge") || id.Contains("edge")) return "Edge";
+        if (id.Contains("firefox")) return "Firefox";
+        if (id.Contains("opera")) return "Opera";
+        if (id.Contains("brave")) return "Brave";
+        if (id.Contains("yandex")) return "Яндекс Музыка";
+        if (id.Contains("vlc")) return "VLC";
+        if (id.Contains("zunemusic") || id.Contains("mediaplayer")) return "Медиаплеер";
+        if (id.Contains("itunes") || id.Contains("applemusic") || id.Contains("apple")) return "Apple Music";
+        if (id.Contains("telegram")) return "Telegram";
+        return "";
     }
 
     private static async Task<byte[]?> ReadThumbnailAsync(IRandomAccessStreamReference? reference)

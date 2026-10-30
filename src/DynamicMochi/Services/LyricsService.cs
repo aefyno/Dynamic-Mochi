@@ -56,14 +56,14 @@ public static class LyricsService
         }
         catch (Exception ex)
         {
-            Log.Write("lrclib: " + ex.Message);
+            Log.Write("lyrics: network error: " + ex.Message);
             throw;   // network error, caller retries
         }
     }
 
     // Picking the best result
 
-    private static LyricsResult? Pick(List<JsonElement> all, string title, string artist, double duration, bool allowScale)
+    private static LyricsResult? Pick(List<JsonElement> all, string title, string artist, double duration, bool allowScale, string stage)
     {
         string want = Norm(CleanTitle(title));
         var items = all.Where(item =>
@@ -77,6 +77,7 @@ public static class LyricsService
         // synced: matching duration, most complete, artist match first
         LyricsResult? best = null;
         string? bestPlain = null;
+        string bestName = "";
         double bestScore = double.MinValue;
         foreach (var item in items)
         {
@@ -99,13 +100,16 @@ public static class LyricsService
                 bestScore = score;
                 best = new LyricsResult(times, parsed.Value.Lines);
                 bestPlain = Str(item, "plainLyrics");
+                bestName = $"#{Num(item, "id"):0} \"{Str(item, "trackName")}\" / \"{Str(item, "artistName")}\" {d:0}s";
             }
         }
         if (best != null)
         {
             var times = best.Times!.ToList();
             var lines = best.Lines.ToList();
+            int before = lines.Count;
             AddIntro(bestPlain, times, lines);
+            Log.Write($"lyrics: {stage}: {all.Count} results, {items.Count} same song, picked {bestName}, {lines.Count} lines (intro +{lines.Count - before}), first at {times[0]:0}s");
             return new LyricsResult(times, lines);
         }
 
@@ -121,7 +125,13 @@ public static class LyricsService
             var lines = SplitLines(plain);
             if (lines.Count > plainBest.Count) plainBest = lines;
         }
-        return plainBest.Count > 0 ? new LyricsResult(null, plainBest) : null;
+        if (plainBest.Count > 0)
+        {
+            Log.Write($"lyrics: {stage}: {all.Count} results, {items.Count} same song, no synced match, plain text {plainBest.Count} lines");
+            return new LyricsResult(null, plainBest);
+        }
+        Log.Write($"lyrics: {stage}: {all.Count} results, {items.Count} same song, nothing usable");
+        return null;
     }
 
     /// <summary>Spreads intro lines that exist only in the plain text evenly before the first timestamp.</summary>
