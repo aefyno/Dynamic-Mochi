@@ -8,386 +8,22 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" ShowActivated="False"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
-        FontFamily="Segoe UI Variable Text, Segoe UI"
+        FontFamily="{DynamicResource UiFont}"
         TextOptions.TextFormattingMode="Display">
 
     <Window.Resources>
         <local:HeightToRadiusConverter x:Key="HeightToRadius"/>
 
-        <!-- Theme brushes. Code replaces them on every theme change (never mutates them),
-             so everything must reference them with DynamicResource / SetResourceReference. -->
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#121214"/>
-        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#1E1E22"/>
-        <SolidColorBrush x:Key="FgBrush" Color="White"/>
-        <SolidColorBrush x:Key="SubBrush" Color="#9EFFFFFF"/>
-        <SolidColorBrush x:Key="FaintBrush" Color="#61FFFFFF"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="White"/>
-        <SolidColorBrush x:Key="AccentFgBrush" Color="Black"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="Transparent"/>
-        <SolidColorBrush x:Key="ToggleOffBrush" Color="#3A3A3C"/>
-        <SolidColorBrush x:Key="EqBrush" Color="#30D158"/>
-
-        <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
-        <FontFamily x:Key="Display">Segoe UI Variable Display, Segoe UI</FontFamily>
-
-        <!-- Themed tooltip -->
-        <Style TargetType="ToolTip">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Placement" Value="Bottom"/>
-            <Setter Property="HasDropShadow" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToolTip">
-                        <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="10,5" Margin="0,4,0,0">
-                            <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" FontSize="12" Foreground="{DynamicResource FgBrush}"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Icon button: hover = surface + scale 1.06, press = scale 0.94 -->
-        <Style x:Key="IconButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{DynamicResource FgBrush}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.06" Duration="0:0:0.12"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.06" Duration="0:0:0.12"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.12"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.12"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="0.94" Duration="0:0:0.09"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="0.94" Duration="0:0:0.09"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.06" Duration="0:0:0.09"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.06" Duration="0:0:0.09"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Tab button: 40×30, icon 18, no hover background (the sliding pill marks the active tab) -->
-        <Style x:Key="TabButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="Foreground" Value="{DynamicResource SubBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="Transparent" CornerRadius="10">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Circular play button filled with the accent colour -->
-        <Style x:Key="PlayButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
-            <Setter Property="Width" Value="44"/>
-            <Setter Property="Height" Value="44"/>
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}"/>
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="22">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Plain clickable area with a hover plate (rows, text buttons) -->
-        <Style x:Key="FlatButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource FgBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Settings row: whole row toggles the switch -->
-        <Style x:Key="SettingRow" TargetType="Button" BasedOn="{StaticResource FlatButton}">
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Padding" Value="12,0"/>
-        </Style>
-
-        <!-- Filled plate button: "+ Событие", "Определить автоматически" -->
-        <Style x:Key="PlateButton" TargetType="Button" BasedOn="{StaticResource FlatButton}">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Accent filled button: "Сохранить" -->
-        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource FlatButton}">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="14,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Small chip: reminder options, °C/°F, week start. Background set from code. -->
-        <Style x:Key="Chip" TargetType="Button" BasedOn="{StaticResource FlatButton}">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="9,0"/>
-            <Setter Property="Margin" Value="0,0,6,6"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Text field: surface plate, accent ring when focused, placeholder from Tag -->
-        <Style x:Key="Field" TargetType="TextBox">
-            <Setter Property="Foreground" Value="{DynamicResource FgBrush}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource FgBrush}"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10" BorderThickness="1.5" BorderBrush="Transparent">
-                            <Grid Margin="10,0">
-                                <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" Foreground="{DynamicResource FaintBrush}" FontSize="{TemplateBinding FontSize}"
-                                           VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed" TextTrimming="CharacterEllipsis"/>
-                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
-                                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="Text" Value="">
-                                <Setter TargetName="Ph" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Thin scroll bar: 4 px, Faint, shown only while scrolling (opacity driven from code) -->
-        <Style x:Key="ThinBar" TargetType="ScrollBar">
-            <Setter Property="Width" Value="4"/>
-            <Setter Property="MinWidth" Value="4"/>
-            <Setter Property="Opacity" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Track x:Name="PART_Track" IsDirectionReversed="True">
-                            <Track.Thumb>
-                                <Thumb>
-                                    <Thumb.Template>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border CornerRadius="2" Background="{DynamicResource FaintBrush}"/>
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                            </Track.Thumb>
-                        </Track>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="ThinScroll" TargetType="ScrollViewer">
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollViewer">
-                        <Grid>
-                            <ScrollContentPresenter Margin="0,0,8,0" CanContentScroll="{TemplateBinding CanContentScroll}"/>
-                            <ScrollBar x:Name="PART_VerticalScrollBar" Style="{StaticResource ThinBar}" HorizontalAlignment="Right"
-                                       Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}"
-                                       Value="{TemplateBinding VerticalOffset}"
-                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Theme card 100×64: ring (BorderBrush) set from code -->
-        <Style x:Key="ThemeCard" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Width" Value="100"/>
-            <Setter Property="Height" Value="64"/>
-            <Setter Property="Margin" Value="0,0,8,8"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.03" Duration="0:0:0.12"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.03" Duration="0:0:0.12"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.12"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.12"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource FaintBrush}"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
-
-        <Style x:Key="Glyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
     </Window.Resources>
 
     <Grid x:Name="WindowRoot">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0">
+        <StackPanel x:Name="IslandStack" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0">
+            <StackPanel.LayoutTransform>
+                <ScaleTransform x:Name="IslandScale" ScaleX="1" ScaleY="1"/>
+            </StackPanel.LayoutTransform>
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="HideShift"/>
+            </StackPanel.RenderTransform>
 
             <!-- Root scale: launch / exit / hover anticipation -->
             <Grid x:Name="CapsuleRoot" RenderTransformOrigin="0.5,0">
@@ -403,7 +39,8 @@
                     <Border x:Name="Capsule" Width="260" Height="52"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0"
                             CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource HeightToRadius}}"
-                            MouseEnter="Capsule_MouseEnter" MouseLeave="Capsule_MouseLeave" SizeChanged="Capsule_SizeChanged">
+                            MouseEnter="Capsule_MouseEnter" MouseLeave="Capsule_MouseLeave" SizeChanged="Capsule_SizeChanged"
+                            MouseLeftButtonUp="Capsule_MouseLeftButtonUp" MouseWheel="Capsule_MouseWheel">
                         <Border.Background>
                             <LinearGradientBrush x:Name="BgBrush" StartPoint="0,0.5" EndPoint="1,0.5">
                                 <GradientStop x:Name="BgTopStop" Color="Black" Offset="0"/>
@@ -424,8 +61,33 @@
                                 </Rectangle.Fill>
                             </Rectangle>
 
+                            <!-- Live weather background (weather tab only) -->
+                            <controls:WeatherFx x:Name="WeatherFx" IsHitTestVisible="False" Opacity="0" Visibility="Collapsed"/>
+
                             <!-- ===== Collapsed ===== -->
                             <Grid x:Name="CollapsedView">
+                                <!-- minimal idle: clock only -->
+                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="17" FontWeight="SemiBold"
+                                           Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                <!-- minimal playing: art · (clock) · equalizer -->
+                                <Grid x:Name="MinPlayRow" Margin="6,0,14,0" Visibility="Collapsed">
+                                    <Border x:Name="MinArtBox" Width="24" Height="24" CornerRadius="7" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Background="{DynamicResource SurfaceBrush}">
+                                        <Border.Clip>
+                                            <RectangleGeometry Rect="0,0,24,24" RadiusX="7" RadiusY="7"/>
+                                        </Border.Clip>
+                                        <Image x:Name="MinArt" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <TextBlock x:Name="MinMusicClock" FontSize="13" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
+                                               Foreground="{DynamicResource FgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <StackPanel x:Name="MinEqBars" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Height="14">
+                                        <Rectangle x:Name="MinBar0" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
+                                        <Rectangle x:Name="MinBar1" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
+                                        <Rectangle x:Name="MinBar2" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
+                                        <Rectangle x:Name="MinBar3" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
+                                    </StackPanel>
+                                </Grid>
                                 <!-- playing / paused -->
                                 <Grid x:Name="PlayingRow" Margin="8,0,18,0" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
@@ -459,8 +121,8 @@
                                 </Grid>
 
                                 <!-- idle: big clock · date · weather -->
-                                <StackPanel x:Name="IdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <TextBlock x:Name="IdleClock" FontFamily="{StaticResource Display}" FontSize="22" FontWeight="SemiBold"
+                                <StackPanel x:Name="IdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                                    <TextBlock x:Name="IdleClock" FontFamily="{DynamicResource DisplayFont}" FontSize="22" FontWeight="SemiBold"
                                                Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="IdleDate" FontSize="13" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center" Margin="10,1,0,0"/>
                                     <StackPanel x:Name="IdleWeather" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,1,0,0" Visibility="Collapsed">
@@ -480,6 +142,12 @@
                                     <Ellipse x:Name="ActivityDot" Width="10" Height="10" VerticalAlignment="Center" Fill="#0A84FF"/>
                                     <controls:MarqueeText x:Name="ActivityTitle" Grid.Column="1" Margin="12,0" FontSize="14" FontWeight="SemiBold"/>
                                     <TextBlock x:Name="ActivityWhen" Grid.Column="2" FontSize="13" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- volume OSD while scrolling over the collapsed capsule -->
+                                <Grid x:Name="VolumeOsd" VerticalAlignment="Bottom" Height="3" Margin="20,0,20,5" Opacity="0" IsHitTestVisible="False">
+                                    <Border CornerRadius="1.5" Background="{DynamicResource FaintBrush}" Opacity="0.4"/>
+                                    <Border x:Name="VolumeOsdFill" CornerRadius="1.5" HorizontalAlignment="Left" Width="0" Background="{DynamicResource FgBrush}"/>
                                 </Grid>
                             </Grid>
 
@@ -529,7 +197,7 @@
                                             <ColumnDefinition Width="55*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock x:Name="BigClock" FontFamily="{StaticResource Display}" FontSize="52" FontWeight="SemiBold"
+                                            <TextBlock x:Name="BigClock" FontFamily="{DynamicResource DisplayFont}" FontSize="52" FontWeight="SemiBold"
                                                        Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" Margin="0,-6,0,0"/>
                                             <TextBlock x:Name="DateText" FontSize="13" Foreground="{DynamicResource SubBrush}" Margin="0,2,0,0"/>
                                             <Button x:Name="HomeWeather" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="6,2" Margin="-6,6,0,0"
@@ -622,7 +290,7 @@
                                             </Border>
 
                                             <StackPanel Grid.Column="2" VerticalAlignment="Top">
-                                                <controls:MarqueeText x:Name="MusicTitle" FontFamily="{StaticResource Display}" FontSize="17" FontWeight="SemiBold" Height="24"/>
+                                                <controls:MarqueeText x:Name="MusicTitle" FontSize="17" FontWeight="SemiBold" Height="24"/>
                                                 <TextBlock x:Name="MusicArtist" FontSize="13" Foreground="{DynamicResource SubBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                                                 <StackPanel x:Name="SourceRow" Orientation="Horizontal" Margin="0,2,0,0">
                                                     <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="0,0,6,0"/>
@@ -632,14 +300,16 @@
                                                 <Grid x:Name="ProgressTrack" Height="18" Margin="0,8,0,0" Background="Transparent" Cursor="Hand"
                                                       MouseLeftButtonDown="Progress_MouseDown" MouseMove="Progress_MouseMove" MouseLeftButtonUp="Progress_MouseUp"
                                                       MouseEnter="Progress_MouseEnter" MouseLeave="Progress_MouseLeave">
-                                                    <Border x:Name="ProgressBg" Height="4" CornerRadius="2" Background="{DynamicResource FaintBrush}" Opacity="0.35" VerticalAlignment="Center"/>
-                                                    <Border x:Name="ProgressFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                                                    <Ellipse x:Name="ProgressThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
+                                                    <Grid x:Name="ProgressInner" Margin="6,0">
+                                                        <Border x:Name="ProgressBg" Height="4" CornerRadius="2" Background="{DynamicResource FaintBrush}" Opacity="0.35" VerticalAlignment="Center"/>
+                                                        <Border x:Name="ProgressFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                                        <Ellipse x:Name="ProgressThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
+                                                    </Grid>
                                                 </Grid>
                                                 <Grid Margin="0,0,0,0">
-                                                    <TextBlock x:Name="TimeLeft" FontSize="11" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FaintBrush}" Text="0:00"/>
+                                                    <TextBlock x:Name="TimeLeft" Margin="6,0,0,0" FontSize="11" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FaintBrush}" Text="0:00"/>
                                                     <TextBlock x:Name="TimeRight" FontSize="11" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FaintBrush}" Text="-0:00"
-                                                               HorizontalAlignment="Right" Cursor="Hand" MouseLeftButtonUp="TimeRight_Click"/>
+                                                               HorizontalAlignment="Right" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonUp="TimeRight_Click"/>
                                                 </Grid>
 
                                                 <StackPanel x:Name="MusicButtons" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
@@ -656,13 +326,15 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="14"
-                                                            Content="&#xE767;" Click="Mute_Click" ToolTip="Выключить звук"/>
-                                                    <Grid x:Name="VolumeTrack" Grid.Column="1" Height="18" Margin="8,0" Background="Transparent" Cursor="Hand"
+                                                            Content="&#xE767;" Click="Mute_Click"/>
+                                                    <Grid x:Name="VolumeTrack" Grid.Column="1" Height="18" Margin="2,0" Background="Transparent" Cursor="Hand"
                                                           MouseLeftButtonDown="Volume_MouseDown" MouseMove="Volume_MouseMove" MouseLeftButtonUp="Volume_MouseUp"
                                                           MouseWheel="Volume_MouseWheel" MouseEnter="Volume_MouseEnter" MouseLeave="Volume_MouseLeave">
-                                                        <Border x:Name="VolumeBg" Height="4" CornerRadius="2" Background="{DynamicResource FaintBrush}" Opacity="0.35" VerticalAlignment="Center"/>
-                                                        <Border x:Name="VolumeFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                        <Ellipse x:Name="VolumeThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
+                                                        <Grid x:Name="VolumeInner" Margin="6,0">
+                                                            <Border x:Name="VolumeBg" Height="4" CornerRadius="2" Background="{DynamicResource FaintBrush}" Opacity="0.35" VerticalAlignment="Center"/>
+                                                            <Border x:Name="VolumeFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                                            <Ellipse x:Name="VolumeThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
+                                                        </Grid>
                                                     </Grid>
                                                     <TextBlock x:Name="VolumeText" Grid.Column="2" FontSize="11" Width="30" TextAlignment="Right" Typography.NumeralAlignment="Tabular"
                                                                Foreground="{DynamicResource FaintBrush}" VerticalAlignment="Center"/>
@@ -820,7 +492,7 @@
                                                 </Grid.ColumnDefinitions>
                                                 <controls:WeatherIcon x:Name="NowIcon" Width="48" Height="48" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
                                                 <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock x:Name="NowTemp" FontFamily="{StaticResource Display}" FontSize="44" FontWeight="SemiBold"
+                                                    <TextBlock x:Name="NowTemp" FontFamily="{DynamicResource DisplayFont}" FontSize="44" FontWeight="SemiBold"
                                                                Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" Margin="0,-8,0,-4"/>
                                                     <TextBlock x:Name="NowDesc" FontSize="13" Foreground="{DynamicResource SubBrush}"/>
                                                 </StackPanel>
@@ -865,81 +537,7 @@
                                             <TextBlock Text="ВНЕШНИЙ ВИД" Style="{StaticResource SectionHeader}"/>
                                             <UniformGrid x:Name="ThemePanel" Columns="3" HorizontalAlignment="Left" Margin="0,0,0,8"/>
 
-                                            <TextBlock x:Name="WeatherSection" Text="ПОГОДА" Style="{StaticResource SectionHeader}" Margin="0,8,0,8"/>
-                                            <StackPanel x:Name="PlacesList" Margin="0,0,0,4"/>
-                                            <Grid x:Name="CityRow">
-                                                <TextBox x:Name="CityBox" Style="{StaticResource Field}" Tag="Найти город" TextChanged="CityBox_TextChanged"
-                                                         PreviewKeyDown="SearchBox_PreviewKeyDown"/>
-                                                <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource FaintBrush}"
-                                                           HorizontalAlignment="Right" Margin="0,0,12,0" IsHitTestVisible="False"/>
-                                                <Ellipse x:Name="CitySpinner" Width="14" Height="14" HorizontalAlignment="Right" Margin="0,0,32,0" StrokeThickness="2"
-                                                         Stroke="{DynamicResource SubBrush}" StrokeDashArray="3 2" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5"
-                                                         IsHitTestVisible="False">
-                                                    <Ellipse.RenderTransform>
-                                                        <RotateTransform x:Name="CitySpin"/>
-                                                    </Ellipse.RenderTransform>
-                                                </Ellipse>
-                                            </Grid>
-                                            <StackPanel x:Name="CityResults" Margin="0,4,0,0"/>
-                                            <Grid x:Name="DistrictRow" Margin="0,8,0,0" Visibility="Collapsed">
-                                                <TextBox x:Name="DistrictBox" Style="{StaticResource Field}" Tag="Район или улица (необязательно)"
-                                                         TextChanged="DistrictBox_TextChanged" PreviewKeyDown="SearchBox_PreviewKeyDown"/>
-                                                <Ellipse x:Name="DistrictSpinner" Width="14" Height="14" HorizontalAlignment="Right" Margin="0,0,12,0" StrokeThickness="2"
-                                                         Stroke="{DynamicResource SubBrush}" StrokeDashArray="3 2" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5"
-                                                         IsHitTestVisible="False">
-                                                    <Ellipse.RenderTransform>
-                                                        <RotateTransform x:Name="DistrictSpin"/>
-                                                    </Ellipse.RenderTransform>
-                                                </Ellipse>
-                                            </Grid>
-                                            <StackPanel x:Name="DistrictResults" Margin="0,4,0,0"/>
-                                            <TextBlock x:Name="PlaceHint" FontSize="12" Foreground="{DynamicResource SubBrush}" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
-                                            <WrapPanel Margin="0,8,0,0">
-                                                <Button x:Name="LocateButton" Style="{StaticResource PlateButton}" Click="Locate_Click" Margin="0,0,8,0">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE81D;" Style="{StaticResource Glyph}" FontSize="13" Foreground="{DynamicResource FgBrush}" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="Определить автоматически" FontSize="13" Foreground="{DynamicResource FgBrush}"/>
-                                                    </StackPanel>
-                                                </Button>
-                                                <Button x:Name="LocationSettingsButton" Style="{StaticResource FlatButton}" Height="32" FontSize="12" Visibility="Collapsed"
-                                                        Foreground="{DynamicResource SubBrush}" Content="Открыть параметры" Click="LocationSettings_Click"/>
-                                            </WrapPanel>
-                                            <Grid Margin="12,10,0,4">
-                                                <TextBlock Text="Единицы" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <Button x:Name="UnitC" Style="{StaticResource Chip}" Content="°C" Margin="0,0,4,0" Click="UnitC_Click"/>
-                                                    <Button x:Name="UnitF" Style="{StaticResource Chip}" Content="°F" Margin="0" Click="UnitF_Click"/>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <TextBlock Text="КАЛЕНДАРЬ" Style="{StaticResource SectionHeader}" Margin="0,16,0,8"/>
-                                            <Grid Margin="12,0,0,4" Height="32">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="&#xE787;" Style="{StaticResource Glyph}" FontSize="16" Foreground="{DynamicResource SubBrush}" Margin="0,0,12,0"/>
-                                                    <TextBlock Text="Неделя начинается с" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <Button x:Name="WeekMon" Style="{StaticResource Chip}" Content="Пн" Margin="0,0,4,0" Click="WeekMon_Click"/>
-                                                    <Button x:Name="WeekSun" Style="{StaticResource Chip}" Content="Вс" Margin="0" Click="WeekSun_Click"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <Button x:Name="NextEventRow" Style="{StaticResource SettingRow}" Click="NextEventRow_Click">
-                                                <Grid>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE823;" Style="{StaticResource Glyph}" FontSize="16" Foreground="{DynamicResource SubBrush}" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="Ближайшее событие на Главной" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                    <Border x:Name="NextEventToggle" Width="40" Height="22" CornerRadius="11" HorizontalAlignment="Right">
-                                                        <Ellipse x:Name="NextEventKnob" Width="18" Height="18" HorizontalAlignment="Left" Margin="2,0,0,0">
-                                                            <Ellipse.RenderTransform>
-                                                                <TranslateTransform/>
-                                                            </Ellipse.RenderTransform>
-                                                        </Ellipse>
-                                                    </Border>
-                                                </Grid>
-                                            </Button>
-
-                                            <TextBlock Text="ПОВЕДЕНИЕ" Style="{StaticResource SectionHeader}" Margin="0,16,0,8"/>
+                                            <TextBlock Text="МУЗЫКА" Style="{StaticResource SectionHeader}" Margin="0,8,0,8"/>
                                             <Button x:Name="LyricsRow" Style="{StaticResource SettingRow}" Click="LyricsRow_Click">
                                                 <Grid>
                                                     <StackPanel Orientation="Horizontal">
@@ -955,20 +553,11 @@
                                                     </Border>
                                                 </Grid>
                                             </Button>
-                                            <Button x:Name="AutoStartRow" Style="{StaticResource SettingRow}" Click="AutoStartRow_Click">
-                                                <Grid>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE7E8;" Style="{StaticResource Glyph}" FontSize="16" Foreground="{DynamicResource SubBrush}" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="Запускать вместе с Windows" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                    <Border x:Name="AutoStartToggle" Width="40" Height="22" CornerRadius="11" HorizontalAlignment="Right">
-                                                        <Ellipse x:Name="AutoStartKnob" Width="18" Height="18" HorizontalAlignment="Left" Margin="2,0,0,0">
-                                                            <Ellipse.RenderTransform>
-                                                                <TranslateTransform/>
-                                                            </Ellipse.RenderTransform>
-                                                        </Ellipse>
-                                                    </Border>
-                                                </Grid>
+                                            <Button Style="{StaticResource PlateButton}" Height="40" Margin="0,12,0,0" Click="AllSettings_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" FontSize="15" Foreground="{DynamicResource FgBrush}" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Все настройки" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}"/>
+                                                </StackPanel>
                                             </Button>
 
                                             <Grid Margin="0,12,0,4">
@@ -988,6 +577,15 @@
                     </Border>
                 </Border>
             </Grid>
+
+            <!-- ===== First run hint ===== -->
+            <Border x:Name="FirstRunHint" Margin="0,8,0,0" Padding="14,8" HorizontalAlignment="Center" CornerRadius="16"
+                    Background="{DynamicResource MenuBrush}" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74A;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource FgBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="Наведи на меня, чтобы открыть" FontSize="13" Foreground="{DynamicResource FgBrush}"/>
+                </StackPanel>
+            </Border>
 
             <!-- ===== Lyric line below the capsule ===== -->
             <Border x:Name="LyricsStrip" Margin="0,8,0,0" MinHeight="36" MaxWidth="600" Padding="16,8" HorizontalAlignment="Center"

@@ -23,30 +23,19 @@ public partial class IslandWindow
     private bool _weatherBusy;
     private DateTime _weatherTriedUtc = DateTime.MinValue;
 
-    // place search
-    private readonly DispatcherTimer _cityDebounce = new() { Interval = TimeSpan.FromMilliseconds(300) };
-    private readonly DispatcherTimer _districtDebounce = new() { Interval = TimeSpan.FromMilliseconds(600) };
-    private CancellationTokenSource? _searchCts;
-    private List<PlaceHit> _hits = new();
-    private int _hitIndex = -1;
-    private bool _hitsForDistrict;
-    private bool _suppressSearch;
-    private Place? _districtBase;
-    private string _districtCity = "";
-
     private void InitWeather()
     {
-        _cityDebounce.Tick += async (_, _) => { _cityDebounce.Stop(); await SearchAsync(district: false); };
-        _districtDebounce.Tick += async (_, _) => { _districtDebounce.Stop(); await SearchAsync(district: true); };
-        RefreshChips();
-        RenderPlaces();
         LoadCachedWeather();
         ShowWeather();
         RefreshWeatherIfStale(TimeSpan.FromMinutes(10));
     }
 
     private string WeatherKey(Place p) =>
-        string.Format(CultureInfo.InvariantCulture, "{0:F4},{1:F4},{2}", p.Latitude, p.Longitude, _settings.Fahrenheit);
+        string.Format(CultureInfo.InvariantCulture, "{0:F4},{1:F4},{2},{3}", p.Latitude, p.Longitude, _settings.Fahrenheit, _settings.WindKmh);
+
+    /// <summary>Forecast for the current place and units, or null.</summary>
+    private WeatherData? CurrentWeather =>
+        _settings.CurrentPlace is { } p && _weatherFor == WeatherKey(p) ? _weather : null;
 
     private void LoadCachedWeather()
     {
@@ -54,7 +43,7 @@ public partial class IslandWindow
         _weather = null;
         _weatherFor = "";
         if (place == null) return;
-        _weather = WeatherService.Cached(place, _settings.Fahrenheit);
+        _weather = WeatherService.Cached(place, _settings.Fahrenheit, _settings.WindKmh);
         _weatherFor = WeatherKey(place);
     }
 
@@ -79,7 +68,7 @@ public partial class IslandWindow
         string key = WeatherKey(place);
         try
         {
-            var data = await WeatherService.FetchAsync(place, _settings.Fahrenheit);
+            var data = await WeatherService.FetchAsync(place, _settings.Fahrenheit, _settings.WindKmh);
             if (_settings.CurrentPlace != null && WeatherKey(_settings.CurrentPlace) == key)
             {
                 _weather = data;
@@ -109,7 +98,7 @@ public partial class IslandWindow
         var rt = new RotateTransform();
         b.RenderTransformOrigin = new Point(0.5, 0.5);
         b.RenderTransform = rt;
-        rt.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, TimeSpan.FromMilliseconds(600))
+        rt.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360, Dur(600))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
         });
@@ -153,7 +142,7 @@ public partial class IslandWindow
         NowTemp.Text = WeatherService.Temp(w.Temp);
         NowDesc.Text = WeatherService.Describe(w.Code);
         NowFeels.Text = "Ощущается " + WeatherService.Temp(w.Feels);
-        NowWind.Text = "Ветер " + Math.Round(w.Wind).ToString("0", CultureInfo.InvariantCulture) + " м/с";
+        NowWind.Text = "Ветер " + Math.Round(w.Wind).ToString("0", CultureInfo.InvariantCulture) + (_settings.WindKmh ? " км/ч" : " м/с");
         NowHumidity.Text = "Влажность " + w.Humidity + "%";
 
         RenderHours(w);
@@ -162,12 +151,13 @@ public partial class IslandWindow
         // idle capsule and Home
         IdleWeatherIcon.Icon = NowIcon.Icon;
         IdleTemp.Text = NowTemp.Text;
-        IdleWeather.Visibility = Visibility.Visible;
+        IdleWeather.Visibility = _settings.WeatherInCapsule ? Visibility.Visible : Visibility.Collapsed;
         HomeWeatherIcon.Icon = NowIcon.Icon;
         HomeWeatherText.Text = NowTemp.Text + " · " + place.Name.Split(',')[0].Trim();
         HomeWeather.Visibility = Visibility.Visible;
 
         UpdateTint(300);
+        UpdateWeatherFx();
     }
 
     private void RenderHours(WeatherData w)
@@ -303,336 +293,35 @@ public partial class IslandWindow
 
     private void HomeWeather_Click(object sender, RoutedEventArgs e) => SelectTab("weather", animate: true);
 
-    private void ChoosePlace_Click(object sender, RoutedEventArgs e)
-    {
-        SelectTab("settings", animate: true);
-        Dispatcher.InvokeAsync(() =>
-        {
-            WeatherSection.BringIntoView(new Rect(0, 0, 10, 200));
-            if (_settings.Places.Count < Settings.MaxPlaces) FocusField(CityBox);
-        }, DispatcherPriority.Loaded);
-    }
+    /// <summary>Place name / "Выбрать": the settings window opens on Weather with the add-place dialog.</summary>
+    private void ChoosePlace_Click(object sender, RoutedEventArgs e) => App.ShowSettings("weather", addPlace: true);
 
-    // ================= Places (settings)
+    // ================= Places (managed in the settings window)
 
     private void SelectPlace(int index)
     {
         if (index < 0 || index >= _settings.Places.Count) return;
         _settings.PlaceIndex = index;
         _settings.Save();
-        RenderPlaces();
+        PlacesChanged();
+        App.SettingsChangedFromIsland();
+    }
+
+    /// <summary>Places, the current place or units changed: reload the cache, redraw and refetch.</summary>
+    public void PlacesChanged()
+    {
         LoadCachedWeather();
         ShowWeather();
         _weatherTriedUtc = DateTime.MinValue;
         RefreshWeatherIfStale(TimeSpan.FromMinutes(10));
     }
 
-    private void RenderPlaces()
+    private string _unitsKey = "";
+
+    private void WeatherSettingsChanged()
     {
-        PlacesList.Children.Clear();
-        for (int i = 0; i < _settings.Places.Count; i++)
-        {
-            int index = i;
-            var p = _settings.Places[i];
-            bool current = i == _settings.PlaceIndex;
-
-            var row = new Grid();
-            var radio = new Grid { Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left };
-            var outer = new Ellipse { Width = 16, Height = 16, StrokeThickness = 1.5 };
-            outer.SetResourceReference(Shape.StrokeProperty, current ? "AccentBrush" : "FaintBrush");
-            radio.Children.Add(outer);
-            if (current)
-            {
-                var inner = new Ellipse { Width = 8, Height = 8 };
-                inner.SetResourceReference(Shape.FillProperty, "AccentBrush");
-                radio.Children.Add(inner);
-            }
-            row.Children.Add(radio);
-            var name = new TextBlock { Text = p.Name, FontSize = 13, Margin = new Thickness(28, 0, 36, 0), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-            name.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
-            row.Children.Add(name);
-
-            var remove = new Button { Style = (Style)FindResource("IconButton"), Width = 26, Height = 26, FontSize = 10, Content = "", ToolTip = "Удалить место", HorizontalAlignment = HorizontalAlignment.Right };
-            remove.SetResourceReference(ForegroundProperty, "SubBrush");
-            remove.Click += (_, e) => { e.Handled = true; RemovePlace(index); };
-            row.Children.Add(remove);
-
-            var button = new Button { Style = (Style)FindResource("SettingRow"), Height = 36, Content = row };
-            button.Click += (_, _) => SelectPlace(index);
-            PlacesList.Children.Add(button);
-        }
-
-        bool full = _settings.Places.Count >= Settings.MaxPlaces;
-        CityBox.IsEnabled = !full;
-        LocateButton.IsEnabled = !full;
-        CityBox.Tag = full ? "Можно сохранить до 3 мест" : _settings.Places.Count == 0 ? "Найти город" : "Добавить город";
-        RenderPlaceDots();
-    }
-
-    private void RemovePlace(int index)
-    {
-        if (index < 0 || index >= _settings.Places.Count) return;
-        var removed = _settings.Places[index];
-        _settings.Places.RemoveAt(index);
-        if (_settings.PlaceIndex >= _settings.Places.Count) _settings.PlaceIndex = Math.Max(0, _settings.Places.Count - 1);
-        _settings.Save();
-        if (_districtBase == removed) { _districtBase = null; DistrictRow.Visibility = Visibility.Collapsed; }
-        RenderPlaces();
-        LoadCachedWeather();
-        ShowWeather();
-        _weatherTriedUtc = DateTime.MinValue;
-        RefreshWeatherIfStale(TimeSpan.FromMinutes(10));
-    }
-
-    private void AddPlace(Place p)
-    {
-        if (_settings.Places.Count >= Settings.MaxPlaces) { ShowHint("Можно сохранить до 3 мест. Удали одно, чтобы добавить новое."); return; }
-        _settings.Places.Add(p);
-        _settings.PlaceIndex = _settings.Places.Count - 1;
-        _settings.Save();
-        RenderPlaces();
-        LoadCachedWeather();
-        ShowWeather();
-        _weatherTriedUtc = DateTime.MinValue;
-        RefreshWeatherIfStale(TimeSpan.Zero);
-    }
-
-    private void ShowHint(string? text, bool showSettingsButton = false)
-    {
-        PlaceHint.Text = text ?? "";
-        PlaceHint.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
-        LocationSettingsButton.Visibility = showSettingsButton ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    // ----- search: city (Open-Meteo geocoding) and district (Nominatim)
-
-    private void CityBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_suppressSearch) return;
-        _cityDebounce.Stop();
-        _cityDebounce.Start();
-    }
-
-    private void DistrictBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_suppressSearch) return;
-        _districtDebounce.Stop();
-        _districtDebounce.Start();
-    }
-
-    private async Task SearchAsync(bool district)
-    {
-        var box = district ? DistrictBox : CityBox;
-        string q = box.Text.Trim();
-        _searchCts?.Cancel();
-        if (q.Length < 2 || (district && _districtBase == null))
-        {
-            ShowHits(new List<PlaceHit>(), district);
-            return;
-        }
-        var cts = new CancellationTokenSource();
-        _searchCts = cts;
-        var (spinner, spin) = district ? (DistrictSpinner, DistrictSpin) : (CitySpinner, CitySpin);
-        SetSpinner(spinner, spin, true);
-        ShowHint(null);
-        try
-        {
-            var hits = district
-                ? await PlaceService.SearchDistrictAsync(q, _districtBase!, cts.Token)
-                : await PlaceService.SearchCityAsync(q, cts.Token);
-            if (cts.IsCancellationRequested) return;
-            ShowHits(hits, district);
-            if (hits.Count == 0) ShowHint(district ? "Ничего не нашлось в этом городе" : "Город не найден");
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            Log.Write("place search failed: " + ex.Message);
-            if (!cts.IsCancellationRequested) ShowHint("Не получилось найти. Проверь интернет.");
-        }
-        finally
-        {
-            if (_searchCts == cts) SetSpinner(spinner, spin, false);
-        }
-    }
-
-    private static void SetSpinner(Ellipse spinner, RotateTransform spin, bool on)
-    {
-        spinner.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        spin.BeginAnimation(RotateTransform.AngleProperty, on
-            ? new DoubleAnimation(0, 360, TimeSpan.FromMilliseconds(800)) { RepeatBehavior = RepeatBehavior.Forever }
-            : null);
-    }
-
-    private void ShowHits(List<PlaceHit> hits, bool district)
-    {
-        _hits = hits;
-        _hitsForDistrict = district;
-        _hitIndex = hits.Count > 0 ? 0 : -1;
-        CityResults.Children.Clear();
-        DistrictResults.Children.Clear();
-        var panel = district ? DistrictResults : CityResults;
-        for (int i = 0; i < hits.Count; i++)
-        {
-            var hit = hits[i];
-            var stack = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
-            var title = new TextBlock { Text = hit.Title, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis };
-            title.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
-            var sub = new TextBlock { Text = hit.Subtitle, FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
-            sub.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
-            stack.Children.Add(title);
-            if (hit.Subtitle.Length > 0) stack.Children.Add(sub);
-            var b = new Button { Style = (Style)FindResource("FlatButton"), Content = stack, Padding = new Thickness(10, 0, 10, 0) };
-            b.Click += (_, _) => ChooseHit(hit, district);
-            panel.Children.Add(b);
-        }
-        HighlightHit();
-    }
-
-    private void HighlightHit()
-    {
-        var panel = _hitsForDistrict ? DistrictResults : CityResults;
-        for (int i = 0; i < panel.Children.Count; i++)
-        {
-            if (panel.Children[i] is not Button b) continue;
-            if (i == _hitIndex) b.SetResourceReference(BackgroundProperty, "SurfaceBrush");
-            else b.Background = Brushes.Transparent;
-        }
-    }
-
-    private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        bool district = sender == DistrictBox;
-        if (district != _hitsForDistrict && _hits.Count > 0 && e.Key is Key.Up or Key.Down or Key.Enter) return;
-        switch (e.Key)
-        {
-            case Key.Down when _hits.Count > 0:
-                _hitIndex = Math.Min(_hits.Count - 1, _hitIndex + 1); HighlightHit(); e.Handled = true; break;
-            case Key.Up when _hits.Count > 0:
-                _hitIndex = Math.Max(0, _hitIndex - 1); HighlightHit(); e.Handled = true; break;
-            case Key.Enter when _hitIndex >= 0 && _hitIndex < _hits.Count:
-                ChooseHit(_hits[_hitIndex], _hitsForDistrict); e.Handled = true; break;
-            case Key.Escape:
-                ClearPlaceSearch(); DisableKeyboard(); e.Handled = true; break;
-        }
-    }
-
-    private void ChooseHit(PlaceHit hit, bool district)
-    {
-        if (!district)
-        {
-            var place = new Place { Name = hit.Title, Latitude = hit.Latitude, Longitude = hit.Longitude, Timezone = hit.Timezone, Country = hit.Country };
-            if (_settings.Places.Count >= Settings.MaxPlaces) { ShowHint("Можно сохранить до 3 мест. Удали одно, чтобы добавить новое."); return; }
-            SetBoxText(CityBox, "");
-            ShowHits(new List<PlaceHit>(), false);
-            AddPlace(place);
-            // step 2: optional district
-            _districtBase = place;
-            _districtCity = hit.Title;
-            SetBoxText(DistrictBox, "");
-            DistrictRow.Visibility = Visibility.Visible;
-            ShowHint("Готово. Можно уточнить район, чтобы погода была точно для твоего места.");
-            FocusField(DistrictBox);
-        }
-        else if (_districtBase != null)
-        {
-            _districtBase.Name = hit.Title + ", " + _districtCity;
-            _districtBase.Latitude = hit.Latitude;
-            _districtBase.Longitude = hit.Longitude;
-            _settings.Save();
-            SetBoxText(DistrictBox, "");
-            ShowHits(new List<PlaceHit>(), true);
-            DistrictRow.Visibility = Visibility.Collapsed;
-            _districtBase = null;
-            ShowHint(null);
-            DisableKeyboard();
-            RenderPlaces();
-            LoadCachedWeather();
-            ShowWeather();
-            _weatherTriedUtc = DateTime.MinValue;
-            RefreshWeatherIfStale(TimeSpan.Zero);
-        }
-    }
-
-    private void SetBoxText(TextBox box, string text)
-    {
-        _suppressSearch = true;
-        box.Text = text;
-        _suppressSearch = false;
-    }
-
-    private void ClearPlaceSearch()
-    {
-        _searchCts?.Cancel();
-        _cityDebounce.Stop();
-        _districtDebounce.Stop();
-        SetSpinner(CitySpinner, CitySpin, false);
-        SetSpinner(DistrictSpinner, DistrictSpin, false);
-        SetBoxText(CityBox, "");
-        SetBoxText(DistrictBox, "");
-        _hits = new();
-        CityResults.Children.Clear();
-        DistrictResults.Children.Clear();
-        DistrictRow.Visibility = Visibility.Collapsed;
-        _districtBase = null;
-        ShowHint(null);
-    }
-
-    // ----- auto-detect
-
-    private async void Locate_Click(object sender, RoutedEventArgs e)
-    {
-        if (_settings.Places.Count >= Settings.MaxPlaces) { ShowHint("Можно сохранить до 3 мест. Удали одно, чтобы добавить новое."); return; }
-        LocateButton.IsEnabled = false;
-        ShowHint("Определяю место…");
-        try
-        {
-            var (result, lat, lon) = await PlaceService.LocateAsync();
-            if (result == PlaceService.LocateResult.Denied)
-            {
-                ShowHint("Разреши доступ к местоположению в Параметрах Windows (Конфиденциальность → Расположение).", showSettingsButton: true);
-                return;
-            }
-            if (result != PlaceService.LocateResult.Ok)
-            {
-                ShowHint("Не получилось определить место. Найди город вручную.");
-                return;
-            }
-            string name;
-            string country = "";
-            try { (name, country) = await PlaceService.ReverseAsync(lat, lon, CancellationToken.None); }
-            catch (Exception ex)
-            {
-                Log.Write("reverse geocoding failed: " + ex.Message);
-                name = string.Format(CultureInfo.InvariantCulture, "{0:F2}, {1:F2}", lat, lon);
-            }
-            AddPlace(new Place { Name = name, Latitude = lat, Longitude = lon, Timezone = "auto", Country = country });
-            ShowHint(null);
-        }
-        finally
-        {
-            LocateButton.IsEnabled = _settings.Places.Count < Settings.MaxPlaces;
-        }
-    }
-
-    private void LocationSettings_Click(object sender, RoutedEventArgs e)
-    {
-        try { Process.Start(new ProcessStartInfo("ms-settings:privacy-location") { UseShellExecute = true }); }
-        catch (Exception ex) { Log.Write("open location settings failed: " + ex.Message); }
-    }
-
-    private void UnitC_Click(object sender, RoutedEventArgs e) => SetUnits(false);
-    private void UnitF_Click(object sender, RoutedEventArgs e) => SetUnits(true);
-
-    private void SetUnits(bool fahrenheit)
-    {
-        if (_settings.Fahrenheit == fahrenheit) return;
-        _settings.Fahrenheit = fahrenheit;
-        _settings.Save();
-        RefreshChips();
-        LoadCachedWeather();
-        ShowWeather();
-        _weatherTriedUtc = DateTime.MinValue;
-        RefreshWeatherIfStale(TimeSpan.Zero);
+        string key = $"{_settings.Fahrenheit}{_settings.WindKmh}|{_settings.PlaceIndex}|{string.Join(";", _settings.Places.Select(p => WeatherKey(p)))}";
+        if (key != _unitsKey) { _unitsKey = key; PlacesChanged(); }
+        else ShowWeather();
     }
 }

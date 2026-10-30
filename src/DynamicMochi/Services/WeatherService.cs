@@ -33,8 +33,8 @@ public static class WeatherService
     private static string CachePath => Path.Combine(Log.Folder, "weather.json");
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    private static string Key(Place p, bool f) =>
-        string.Format(Inv, "{0:F4},{1:F4},{2}", p.Latitude, p.Longitude, f ? "F" : "C");
+    private static string Key(Place p, bool f, bool kmh) =>
+        string.Format(Inv, "{0:F4},{1:F4},{2}{3}", p.Latitude, p.Longitude, f ? "F" : "C", kmh ? "k" : "m");
 
     private sealed class CacheEntry
     {
@@ -54,23 +54,23 @@ public static class WeatherService
     }
 
     /// <summary>Last cached forecast for a place, or null.</summary>
-    public static WeatherData? Cached(Place p, bool fahrenheit)
+    public static WeatherData? Cached(Place p, bool fahrenheit, bool kmh)
     {
         var cache = ReadCache();
-        if (!cache.TryGetValue(Key(p, fahrenheit), out var e)) return null;
+        if (!cache.TryGetValue(Key(p, fahrenheit, kmh), out var e)) return null;
         try { return Parse(e.Json, e.FetchedUtc); }
         catch { return null; }
     }
 
-    public static async Task<WeatherData> FetchAsync(Place p, bool fahrenheit)
+    public static async Task<WeatherData> FetchAsync(Place p, bool fahrenheit, bool kmh)
     {
         string url = string.Format(Inv,
             "https://api.open-meteo.com/v1/forecast?latitude={0:F4}&longitude={1:F4}" +
             "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day" +
             "&hourly=temperature_2m,weather_code,precipitation_probability" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset" +
-            "&timezone=auto&forecast_days=7&wind_speed_unit=ms{2}",
-            p.Latitude, p.Longitude, fahrenheit ? "&temperature_unit=fahrenheit" : "");
+            "&timezone=auto&forecast_days=7&wind_speed_unit={2}{3}",
+            p.Latitude, p.Longitude, kmh ? "kmh" : "ms", fahrenheit ? "&temperature_unit=fahrenheit" : "");
         string json = await Http.GetStringAsync(url);
         var now = DateTime.UtcNow;
         var data = Parse(json, now);   // validate before caching
@@ -78,7 +78,7 @@ public static class WeatherService
         try
         {
             var cache = ReadCache();
-            cache[Key(p, fahrenheit)] = new CacheEntry { FetchedUtc = now, Json = json };
+            cache[Key(p, fahrenheit, kmh)] = new CacheEntry { FetchedUtc = now, Json = json };
             Directory.CreateDirectory(Log.Folder);
             File.WriteAllText(CachePath, JsonSerializer.Serialize(cache));
         }
