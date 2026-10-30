@@ -34,11 +34,18 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
 
 ## Project layout
 
-- `src/DynamicMochi/IslandWindow.xaml(.cs)`: capsule, shape and clip, theme, expand/collapse, tabs, settings rows, keyboard for fields
+- `src/DynamicMochi/App.xaml(.cs)`: shared settings, fonts, theme brushes, tray icon, menus, opening the settings window
+- `Themes/Shared.xaml`: all styles and theme brush keys, shared by both windows (replaced from code, DynamicResource only)
+- `SettingsWindow.xaml(.cs)`: full settings window (Mica, side menu, search, add-place dialog)
+- `Assets/Fonts`: Inter, Inter Display, Manrope, Onest (static instances made from the Google Fonts variable fonts, OFL in `LICENSES`); `Assets/mochi.ico`
+- `src/DynamicMochi/IslandWindow.xaml(.cs)`: capsule, layout (scale, offset, monitor), minimal / detailed / expanded states, theme, tabs, hotkey, full-screen hiding
 - `IslandWindow.Music.cs`: now playing, progress, volume, lyric line
 - `IslandWindow.Calendar.cs`: month grid, day list, event form, reminders (live activity)
 - `IslandWindow.Weather.cs`: weather tab, place picker (city → district, auto-detect, up to 3 places)
 - `Controls/WeatherIcon.cs`: vector weather icons (Segoe Fluent has no full weather set)
+- `Controls/WeatherFx.cs`: live weather background (one element, OnRender, ≤ 30 fps, ≤ 150 particles)
+- `Controls/UiHelpers.cs`: theme cards, toggle, segmented control, slider with inset, thin scroll bars
+- `Services/Screens.cs`: monitors, placing the island, full-screen detection; `Services/TrayIcon.cs`: notification-area icon
 - `Services/MediaService.cs`: SMTC now playing, art, position, controls
 - `Services/VolumeService.cs`: volume of the playing app (Core Audio sessions via NAudio), system volume fallback
 - `Services/LyricsService.cs`: lrclib lookup and matching
@@ -76,3 +83,12 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Extra: volume slider with mute on the Music tab. Changes the playing app's own volume (matched by process name), falls back to the system volume.
   - Text fields: the window still never takes focus, except after a click into a field; the previous app gets focus back when the island closes.
   - Not verified on hardware yet (built in CI only): needs the full run of the v1.2 checklist on Windows 11 at 100/125/150 %.
+- **2026-10-31 (v1.3, per `docs/SPEC-v1.3.md`):**
+  - 1: no tooltip on the volume; volume and progress tracks have a 6 px inset so the thumb is whole at 0 % and 100 %.
+  - 2: Inter (400/500/600) for the UI, Inter Display for clocks and big numbers, embedded as resources; font picker Inter / Manrope / Onest / Segoe UI Variable, applied live. Fonts come from one place (`UiFont` / `DisplayFont`). Not done: −1 % tracking (WPF `TextBlock` has no letter-spacing).
+  - 3: separate settings window: Mica + theme-coloured title bar (solid fallback without Mica), side menu with accent bar, search across all rows, rows with descriptions, changes apply and save immediately, size and position remembered. Opens from the island tab ("Все настройки"), right click on the capsule and the tray icon; only one window. Sections: Общее (size presets + 80–130 % slider live, top offset, monitor, idle view, clock with music, hide in full screen, autostart, hotkey with capture and "занято" status, language placeholder), Внешний вид (6 cards 180×96, font, artwork blob, animation speed 1 / 0.6 / 0), Музыка (lyrics, lyric size 13–18, equalizer, player/system volume, click control), Погода (places, °C/°F, m/s / km/h, weather in the capsule), Календарь (week start, next event, reminders, 5/8/15 s), О программе (version, GitHub, log folder, reset with confirmation, Shift+click on the version → weather preview). Place picker is a dialog: city (Open-Meteo) → optional district (Nominatim) with Готово / Пропустить, free search for districts and streets, auto-detect. Names in Russian via `namedetails` (`name:ru`), otherwise as returned. The island has no place fields any more.
+  - Not done in 3: the English UI (strings are not moved to resources yet; the language setting is stored only).
+  - 4: minimal idle view by default: 200×36 clock only, 240×36 art 24 + equalizer (+ 13 px clock, toggle). Hover: after 150 ms grows to the detailed 340×52 view, after 350 ms more opens fully. Reminders still show at 380×52.
+  - 4.5: live weather background on the weather tab for all 8 kinds, under the content (layer opacity 0.5), clipped to the capsule, white / #5E7A99 particles, accent tint for sun and stars in coloured themes, 30 fps cap, max 140 drops, stopped completely when the tab is hidden or the island collapses, 800 ms crossfade on weather change, off with "Без анимаций".
+  - 5: hotkey Win+Alt+I (configurable), click / double click on the collapsed capsule (toggle, off by default), wheel over the collapsed capsule = volume ±5 % with a thin bar, slide up for full-screen apps (250 ms), first run hint for 4 s.
+  - Built in CI only, needs the v1.3 checklist on hardware.

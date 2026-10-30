@@ -159,23 +159,23 @@ public partial class IslandWindow
     /// <summary>Crossfade the artwork into all three slots; the big one "presses in" 0.96 → 1.</summary>
     private void SetArt(BitmapImage? img, bool animate)
     {
-        foreach (var image in new[] { MiniArt, HomeArt, BigArt })
+        foreach (var image in new[] { MiniArt, MinArt, HomeArt, BigArt })
         {
             if (!animate) { image.Source = img; continue; }
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110));
+            var fadeOut = new DoubleAnimation(0, Dur(110));
             var target = image;
             fadeOut.Completed += (_, _) =>
             {
                 target.Source = img;
-                target.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(110)));
+                target.BeginAnimation(OpacityProperty, new DoubleAnimation(1, Dur(110)));
             };
             image.BeginAnimation(OpacityProperty, fadeOut);
         }
         if (animate)
         {
             var press = new DoubleAnimationUsingKeyFrames();
-            press.KeyFrames.Add(new LinearDoubleKeyFrame(0.96, TimeSpan.FromMilliseconds(110)));
-            press.KeyFrames.Add(new EasingDoubleKeyFrame(1, TimeSpan.FromMilliseconds(220), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }));
+            press.KeyFrames.Add(new LinearDoubleKeyFrame(0.96, Dur(110)));
+            press.KeyFrames.Add(new EasingDoubleKeyFrame(1, Dur(220), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }));
             BigArtScale.BeginAnimation(ScaleTransform.ScaleXProperty, press);
             BigArtScale.BeginAnimation(ScaleTransform.ScaleYProperty, press);
         }
@@ -186,8 +186,8 @@ public partial class IslandWindow
     {
         double w = _expanded ? ExpandedW : CollapsedWidth;
         var a = new DoubleAnimationUsingKeyFrames();
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w * 1.03, TimeSpan.FromMilliseconds(110), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w, TimeSpan.FromMilliseconds(220), new QuadraticEase { EasingMode = EasingMode.EaseInOut }));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(w * 1.03, Dur(110), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+        a.KeyFrames.Add(new EasingDoubleKeyFrame(w, Dur(220), new QuadraticEase { EasingMode = EasingMode.EaseInOut }));
         a.Completed += (_, _) => Repaint();
         Capsule.BeginAnimation(FrameworkElement.WidthProperty, a);
     }
@@ -196,11 +196,11 @@ public partial class IslandWindow
     private static void SwapIcon(Button b, string icon, bool animate)
     {
         if (!animate) { b.Content = icon; return; }
-        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(75));
+        var fade = new DoubleAnimation(0, Dur(75));
         fade.Completed += (_, _) =>
         {
             b.Content = icon;
-            b.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(75)));
+            b.BeginAnimation(OpacityProperty, new DoubleAnimation(1, Dur(75)));
         };
         b.BeginAnimation(OpacityProperty, fade);
     }
@@ -258,31 +258,31 @@ public partial class IslandWindow
     private void Progress_MouseEnter(object sender, MouseEventArgs e)
     {
         AnimateHeight(ProgressBg, 6); AnimateHeight(ProgressFill, 6);
-        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(1, Dur(120)));
     }
 
     private void Progress_MouseLeave(object sender, MouseEventArgs e)
     {
         if (_dragging) return;
         AnimateHeight(ProgressBg, 4); AnimateHeight(ProgressFill, 4);
-        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(120)));
+        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(0, Dur(120)));
     }
 
     private static void AnimateHeight(FrameworkElement el, double to) =>
-        el.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(120)));
+        el.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(to, Dur(120)));
 
     private void Progress_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (_track == null || _track.DurationSec <= 0) return;
         _dragging = true;
-        _dragFraction = Fraction(ProgressTrack, e.GetPosition(ProgressTrack).X);
+        _dragFraction = Fraction(ProgressInner, e.GetPosition(ProgressInner).X);
         ProgressTrack.CaptureMouse();
     }
 
     private void Progress_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_dragging) return;
-        _dragFraction = Fraction(ProgressTrack, e.GetPosition(ProgressTrack).X);
+        _dragFraction = Fraction(ProgressInner, e.GetPosition(ProgressInner).X);
     }
 
     private async void Progress_MouseUp(object sender, MouseButtonEventArgs e)
@@ -290,7 +290,7 @@ public partial class IslandWindow
         if (!_dragging) return;
         _dragging = false;
         ProgressTrack.ReleaseMouseCapture();
-        _dragFraction = Fraction(ProgressTrack, e.GetPosition(ProgressTrack).X);
+        _dragFraction = Fraction(ProgressInner, e.GetPosition(ProgressInner).X);
         if (_track == null || _track.DurationSec <= 0) return;
         double target = _dragFraction * _track.DurationSec;
         _track = _track with { PositionSec = target, PositionStampUtc = DateTime.UtcNow };
@@ -315,8 +315,6 @@ public partial class IslandWindow
             _volume.Track(_track?.AppId ?? "", force);
             _volFraction = _volume.Volume;
             ShowVolume(_volume.Muted);
-            string who = _volume.IsApp && !string.IsNullOrEmpty(_track?.Source) ? "Громкость: " + _track!.Source : "Громкость системы";
-            VolumeTrack.ToolTip = who;
         }
         catch (Exception ex)
         {
@@ -327,12 +325,11 @@ public partial class IslandWindow
     private void ShowVolume(bool muted)
     {
         double f = muted ? 0 : _volFraction;
-        double w = VolumeTrack.ActualWidth;
+        double w = VolumeInner.ActualWidth;
         VolumeFill.Width = Math.Max(0, w * f);
         VolumeThumb.Margin = new Thickness(w * f - 6, 0, 0, 0);
         VolumeText.Text = muted ? "—" : $"{Math.Round(_volFraction * 100)}";
         MuteButton.Content = muted || _volFraction < 0.005 ? "" : "";
-        MuteButton.ToolTip = muted ? "Включить звук" : "Выключить звук";
     }
 
     private void SetVolume(double f)
@@ -354,12 +351,12 @@ public partial class IslandWindow
     {
         _volDragging = true;
         VolumeTrack.CaptureMouse();
-        SetVolume(Fraction(VolumeTrack, e.GetPosition(VolumeTrack).X));
+        SetVolume(Fraction(VolumeInner, e.GetPosition(VolumeInner).X));
     }
 
     private void Volume_MouseMove(object sender, MouseEventArgs e)
     {
-        if (_volDragging) SetVolume(Fraction(VolumeTrack, e.GetPosition(VolumeTrack).X));
+        if (_volDragging) SetVolume(Fraction(VolumeInner, e.GetPosition(VolumeInner).X));
     }
 
     private void Volume_MouseUp(object sender, MouseButtonEventArgs e)
@@ -379,14 +376,14 @@ public partial class IslandWindow
     private void Volume_MouseEnter(object sender, MouseEventArgs e)
     {
         AnimateHeight(VolumeBg, 6); AnimateHeight(VolumeFill, 6);
-        VolumeThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+        VolumeThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(1, Dur(120)));
     }
 
     private void Volume_MouseLeave(object sender, MouseEventArgs e)
     {
         if (_volDragging) return;
         AnimateHeight(VolumeBg, 4); AnimateHeight(VolumeFill, 4);
-        VolumeThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(120)));
+        VolumeThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(0, Dur(120)));
     }
 
     // ----- 50 ms: equalizer, progress, lyrics
@@ -394,10 +391,12 @@ public partial class IslandWindow
     private void MusicTick(DateTime local)
     {
         var bars = new[] { Bar0, Bar1, Bar2, Bar3 };
+        var minBars = new[] { MinBar0, MinBar1, MinBar2, MinBar3 };
         for (int i = 0; i < bars.Length; i++)
         {
             _eqNow[i] += (_eqTarget[i] - _eqNow[i]) * 0.35;
             bars[i].Height = Math.Round(_eqNow[i], 1);
+            minBars[i].Height = Math.Round(Math.Max(3, _eqNow[i] * 0.8), 1);
         }
 
         var track = _track;
@@ -408,7 +407,7 @@ public partial class IslandWindow
             double frac = _dragging ? _dragFraction : (dur > 0 ? Math.Clamp(pos / dur, 0, 1) : 0);
             if (_page == "music")
             {
-                double w = ProgressTrack.ActualWidth;
+                double w = ProgressInner.ActualWidth;
                 ProgressFill.Width = w * frac;
                 ProgressThumb.Margin = new Thickness(w * frac - 6, 0, 0, 0);
                 double shown = _dragging ? frac * dur : pos;
@@ -425,6 +424,25 @@ public partial class IslandWindow
             ShowVolume(_volume.Muted);   // first layout pass: track width is known only now
 
         UpdateLyricLine(local.TimeOfDay.TotalSeconds, pos);
+    }
+
+    /// <summary>Settings: system or player volume, equalizer, lyric size, clock next to the music.</summary>
+    private void ApplyMusicSettings()
+    {
+        _volume.PreferSystem = _settings.SystemVolume;
+        _volumeReadAt = DateTime.MinValue;
+        var eq = _settings.ShowEqualizer ? Visibility.Visible : Visibility.Collapsed;
+        EqBars.Visibility = eq;
+        MinEqBars.Visibility = eq;
+        MinMusicClock.Visibility = _settings.ClockWithMusic ? Visibility.Visible : Visibility.Collapsed;
+        double size = _settings.LyricsSize;
+        LyricText.FontSize = size;
+        LyricText.LineHeight = size + 5;
+        LyricText.MaxHeight = 2 * (size + 5);
+        _shownIndex = int.MinValue;
+        if (_settings.ShowLyrics && _track != null) UpdateLyricsSource(_track);
+        UpdateStrip();
+        if (_expanded && _page == "music") RefreshVolume(force: true);
     }
 
     private void RetargetEqualizer()
@@ -517,7 +535,7 @@ public partial class IslandWindow
         }
         else if (!show && LyricsStrip.Visibility == Visibility.Visible)
         {
-            var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(150));
+            var fade = new DoubleAnimation(0, Dur(150));
             fade.Completed += (_, _) =>
             {
                 if (LyricsStrip.Opacity < 0.01) LyricsStrip.Visibility = Visibility.Collapsed;
@@ -605,7 +623,7 @@ public partial class IslandWindow
             }
             first = false;
         }
-        var dur = TimeSpan.FromMilliseconds(220);
+        var dur = Dur(220);
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
         LyricText.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
         LyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, dur) { EasingFunction = ease });
@@ -620,7 +638,7 @@ public partial class IslandWindow
         var lines = _lyrics.Lines;
         PreviewCurrent.Text = index >= 0 ? lines[index] : "…";
         PreviewNext.Text = index + 1 < lines.Count ? lines[index + 1] : "";
-        var dur = TimeSpan.FromMilliseconds(220);
+        var dur = Dur(220);
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
         PreviewCurrent.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
         PreviewShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, dur) { EasingFunction = ease });

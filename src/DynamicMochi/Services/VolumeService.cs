@@ -16,6 +16,9 @@ public sealed class VolumeService
     private readonly List<AudioSessionControl> _sessions = new();
     private DateTime _lookedUp = DateTime.MinValue;
 
+    /// <summary>Always use the system volume (setting "Громкость: Системная").</summary>
+    public bool PreferSystem { get; set; }
+
     /// <summary>True when the volume belongs to the player, false when it is the system volume.</summary>
     public bool IsApp => _sessions.Count > 0;
 
@@ -46,7 +49,7 @@ public sealed class VolumeService
         _sessions.Clear();
         _device = null;   // the default output may have changed (headphones plugged in)
         var dev = Device;
-        if (dev == null || string.IsNullOrEmpty(appId)) return;
+        if (dev == null || string.IsNullOrEmpty(appId) || PreferSystem) return;
         string id = appId.ToLowerInvariant();
         try
         {

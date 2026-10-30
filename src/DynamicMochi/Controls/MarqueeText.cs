@@ -52,6 +52,9 @@ public sealed class MarqueeText : Grid
     /// <summary>Bind the text colour to a theme brush so theme changes animate through.</summary>
     public void SetForegroundResource(object key) => _text.SetResourceReference(TextBlock.ForegroundProperty, key);
 
+    /// <summary>Bind the font to a shared font resource (e.g. "DisplayFont").</summary>
+    public void SetFontResource(object key) => _text.SetResourceReference(TextBlock.FontFamilyProperty, key);
+
     private void Stop()
     {
         _story?.Stop();
