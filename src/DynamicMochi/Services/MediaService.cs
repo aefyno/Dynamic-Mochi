@@ -13,7 +13,8 @@ public sealed record TrackSnapshot(
     double DurationSec,
     DateTime PositionStampUtc,
     byte[]? Thumbnail,
-    string Source)
+    string Source,
+    string AppId)
 {
     public string Key => Title + "|" + Artist;
 
@@ -86,7 +87,7 @@ public sealed class MediaService
             _thumb = await ReadThumbnailAsync(props.Thumbnail);
         }
 
-        return new TrackSnapshot(props.Title, props.Artist ?? "", playing, position, duration, stamp, _thumb, source);
+        return new TrackSnapshot(props.Title, props.Artist ?? "", playing, position, duration, stamp, _thumb, source, session.SourceAppUserModelId ?? "");
     }
 
     /// <summary>Human-readable player name from the SMTC source id; empty when unknown.</summary>

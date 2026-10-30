@@ -10,8 +10,12 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>DynamicMochi</AssemblyName>
     <RootNamespace>DynamicMochi</RootNamespace>
-    <Version>0.1.0</Version>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Version>0.2.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
 
 </Project>

@@ -31,6 +31,13 @@ public sealed class MarqueeText : Grid
         set { if (_text.Text != value) { _text.Text = value; Restart(); } }
     }
 
+    /// <summary>When false, the text scrolls only between <see cref="Play"/> and <see cref="Pause"/> (e.g. on hover).</summary>
+    public bool AutoPlay { get; set; } = true;
+    private bool _playing;
+
+    public void Play() { _playing = true; Restart(); }
+    public void Pause() { _playing = false; Restart(); }
+
     public double FontSize { get => _text.FontSize; set => _text.FontSize = value; }
     public FontWeight FontWeight { get => _text.FontWeight; set => _text.FontWeight = value; }
     public FontFamily FontFamily { get => _text.FontFamily; set => _text.FontFamily = value; }
@@ -59,6 +66,16 @@ public sealed class MarqueeText : Grid
         Stop();
         double overflow = _text.ActualWidth - ActualWidth;
         if (overflow <= 2 || ActualWidth <= 0) return;
+        if (!AutoPlay && !_playing)
+        {
+            // static: fade only the right edge so the cut is soft
+            double f0 = Math.Min(16 / ActualWidth, 0.3);
+            OpacityMask = new LinearGradientBrush(new GradientStopCollection
+            {
+                new(Colors.Black, 0), new(Colors.Black, 1 - f0), new(Colors.Transparent, 1),
+            }, new Point(0, 0), new Point(1, 0));
+            return;
+        }
 
         double fade = Math.Min(12 / ActualWidth, 0.25);
         OpacityMask = new LinearGradientBrush(new GradientStopCollection

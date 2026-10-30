@@ -1,77 +1,61 @@
 using System.Globalization;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
-using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using DynamicMochi.Controls;
 using DynamicMochi.Services;
 
 namespace DynamicMochi;
 
+/// <summary>
+/// The island. Split into partial files: this one (window, theme, shape, tabs, keyboard, settings rows),
+/// IslandWindow.Music.cs, IslandWindow.Calendar.cs, IslandWindow.Weather.cs.
+/// </summary>
 public partial class IslandWindow : Window
 {
-    // Capsule sizes
-    private const double CollapsedW = 320, IdleW = 200, CollapsedH = 44;
-    private const double ExpandedW = 560;
-    private const double HomeH = 210, MusicH = 236, MusicWithLyricsH = 290, SettingsH = 320;
+    // Capsule sizes (DESIGN v1.2, A2)
+    private const double PlayingW = 340, IdleW = 260, ActivityW = 380, CollapsedH = 52;
+    private const double ExpandedW = 600;
+    private const double PageChrome = 12 + 30 + 12 + 16;   // top margin, tab bar, gap, bottom margin
+    private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 292, WeatherH = 400, SettingsH = 380;
 
     private readonly Settings _settings = Settings.Load();
-    private readonly MediaService _media = new();
     private readonly DispatcherTimer _uiTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
-    private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
     private readonly DispatcherTimer _expandTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
-    private readonly DispatcherTimer _eqTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private static readonly CultureInfo Ru = new("ru-RU");
-    private static readonly Random Rng = new();
 
-    // Theme brushes (unfrozen so colours can animate)
-    private readonly Dictionary<string, SolidColorBrush> _brushes = new();
-    private Theme _theme = Themes.All[0];
+    private static readonly string[] ThemeKeys =
+    {
+        "SurfaceBrush", "SurfaceHoverBrush", "FgBrush", "SubBrush", "FaintBrush", "AccentBrush",
+        "AccentFgBrush", "BorderBrush", "ToggleOffBrush", "EqBrush",
+    };
+
+    private Theme _theme = Themes.Find(null);
     private readonly List<(Button Card, Border Check, Theme Theme)> _themeCards = new();
 
-    private TrackSnapshot? _track;
-    private string _shownKey = "";
-    private bool _hasArt;
+    private IntPtr _hwnd;
     private bool _expanded;
-    private bool _polling;
     private bool _loading = true;
     private string _page = "home";
-    private bool _showTotal;
-    private bool _dragging;
-    private double _dragFraction;
-    private readonly double[] _eqTarget = { 4, 4, 4, 4 };
-    private readonly double[] _eqNow = { 4, 4, 4, 4 };
+    private int _lastSecond = -1;
 
-    // Lyrics
-    private string _lyrKey = "";
-    private LyricsResult? _lyrics;
-    private int _lyrAttempts;
-    private DateTime? _lyrRetryAt;
-    private bool _lyrBusy;
-    private DateTime? _noDurationSince;
-    private int _shownIndex = int.MinValue;
-    private bool _shownDots;
-    private int _previewIndex = int.MinValue;
+    // keyboard: the window never takes focus, except while the user types into a field
+    private bool _keyboard;
+    private IntPtr _previousForeground;
 
     public IslandWindow()
     {
         InitializeComponent();
-        CreateBrushes();
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
+        Deactivated += OnDeactivated;
         _uiTimer.Tick += (_, _) => UiTick();
-        _pollTimer.Tick += async (_, _) => await PollAsync();
-        _eqTimer.Tick += (_, _) => RetargetEqualizer();
         _expandTimer.Tick += (_, _) =>
         {
             _expandTimer.Stop();
@@ -80,141 +64,133 @@ public partial class IslandWindow : Window
         _collapseTimer.Tick += (_, _) =>
         {
             _collapseTimer.Stop();
-            if (!Capsule.IsMouseOver && _expanded) Collapse();
+            if (!Capsule.IsMouseOver && _expanded && !_keyboard) Collapse();
         };
+
+        foreach (var box in new[] { FormTitle, FormTime, CityBox, DistrictBox })
+            box.PreviewMouseLeftButtonDown += (_, _) => EnableKeyboard();
+        foreach (var sv in new[] { SettingsPage, DaysScroll, DayScroll, EventForm })
+            sv.ScrollChanged += ThinScroll_ScrollChanged;
     }
 
     // ================= Window
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        Native.MakeToolWindow(hwnd);
+        _hwnd = new WindowInteropHelper(this).Handle;
+        Native.MakeToolWindow(_hwnd);
         PlaceOnScreen();
     }
 
     private void PlaceOnScreen()
     {
-        Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
-        Top = 0;
+        double left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
+        if (Math.Abs(Left - left) > 0.5) Left = left;
+        if (Top != 0) Top = 0;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            _theme = Themes.Find(_settings.Theme);
-            ApplyTheme(_theme, animate: false);
-            BuildThemeCards();
-            SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: false);
-            SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate: false);
-            ShowTrack(null);
-            SelectTab("home", animate: false);
-        }
-        catch (Exception ex)
-        {
-            Log.Write("startup: " + ex);
-        }
-        finally
-        {
-            _loading = false;
+        // Each step is isolated: one failing step must not hide the island or the rest of the UI.
+        Step("theme", () => ApplyTheme(_theme = Themes.Find(_settings.Theme), animate: false));
+        Step("theme cards", BuildThemeCards);
+        Step("toggles", RefreshToggles);
+        Step("shape", () => SetGradientShape(expanded: false, ms: 0));
+        Step("track", () => ShowTrack(null));
+        Step("calendar", InitCalendar);
+        Step("weather", InitWeather);
+        Step("tabs", () => SelectTab("home", animate: false));
+        Step("version", () => VersionText.Text = "Dynamic Mochi " + (typeof(IslandWindow).Assembly.GetName().Version?.ToString(3) ?? ""));
+        _loading = false;
 
-            // appear from a point; must run even if setup failed, otherwise the island stays invisible
-            var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
-            var grow = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450)) { EasingFunction = spring };
-            RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-            RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
-        }
+        // appear from a point; always runs, otherwise the island stays invisible
+        var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
+        var grow = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450)) { EasingFunction = spring };
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
 
-        await _media.InitAsync();
         _uiTimer.Start();
-        _pollTimer.Start();
-        _eqTimer.Start();
-        await PollAsync();
+        await StartMediaAsync();
+    }
+
+    private static void Step(string name, Action action)
+    {
+        try { action(); }
+        catch (Exception ex) { Log.Write($"startup step '{name}' failed: {ex}"); }
     }
 
     // ================= Theme
 
-    private void CreateBrushes()
-    {
-        foreach (var key in new[] { "SurfaceBrush", "SurfaceHoverBrush", "FgBrush", "SubBrush", "FaintBrush", "AccentBrush",
-                                    "AccentFgBrush", "BorderBrush", "ToggleOffBrush", "EqBrush", "TabPillBrush", "TabActiveBrush",
-                                    "CardFillBrush", "CardStrokeBrush" })
-        {
-            var b = new SolidColorBrush(((SolidColorBrush)Resources[key]).Color);
-            _brushes[key] = b;
-            Resources[key] = b;
-        }
-        MiniTitle.SetForegroundResource("FgBrush");
-        HomeTitle.SetForegroundResource("FgBrush");
-        MusicTitle.SetForegroundResource("FgBrush");
-    }
-
+    /// <summary>
+    /// Theme brushes are replaced, never mutated. WPF freezes a brush resource once a style or template
+    /// resolves it (unless an animation is running on it); recolouring a frozen brush throws. So every
+    /// change builds a new brush (its colour animation already running) and swaps it into Resources;
+    /// DynamicResource / SetResourceReference users pick up the new instance.
+    /// </summary>
     private void ApplyTheme(Theme t, bool animate)
     {
         _theme = t;
         var dur = TimeSpan.FromMilliseconds(animate ? 250 : 0);
 
-        void Set(string key, Color c)
-        {
-            var b = _brushes[key];
-            if (b.IsFrozen)
-            {
-                // WPF freezes brushes that end up in styles/templates; swap in a fresh one
-                b = new SolidColorBrush(b.Color);
-                _brushes[key] = b;
-                Resources[key] = b;
-            }
-            if (animate) b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(c, dur));
-            else { b.BeginAnimation(SolidColorBrush.ColorProperty, null); b.Color = c; }
-        }
-        void SetStop(GradientStop s, Color c)
-        {
-            if (animate) s.BeginAnimation(GradientStop.ColorProperty, new ColorAnimation(c, dur));
-            else { s.BeginAnimation(GradientStop.ColorProperty, null); s.Color = c; }
-        }
+        SetBrush("SurfaceBrush", t.Surface, animate);
+        SetBrush("SurfaceHoverBrush", t.SurfaceHover, animate);
+        SetBrush("FgBrush", t.Fg, animate);
+        SetBrush("SubBrush", t.Sub, animate);
+        SetBrush("FaintBrush", t.Faint, animate);
+        SetBrush("AccentBrush", t.Accent, animate);
+        SetBrush("AccentFgBrush", t.AccentFg, animate);
+        SetBrush("BorderBrush", t.Border, animate);
+        SetBrush("ToggleOffBrush", t.ToggleOff, animate);
+        SetBrush("EqBrush", t.Equalizer, animate);
 
-        Set("SurfaceBrush", t.Surface);
-        Set("SurfaceHoverBrush", t.SurfaceHover);
-        Set("FgBrush", t.Fg);
-        Set("SubBrush", t.Sub);
-        Set("FaintBrush", t.Faint);
-        Set("AccentBrush", t.Accent);
-        Set("AccentFgBrush", t.AccentFg);
-        Set("BorderBrush", t.Border);
-        Set("ToggleOffBrush", t.ToggleOff);
-        Set("EqBrush", t.Equalizer);
-        // monochrome: active tab is an inverted pill; cards are outlines instead of fills
-        Set("TabPillBrush", t.OutlineCards ? t.Accent : t.Surface);
-        Set("TabActiveBrush", t.OutlineCards ? t.AccentFg : t.Accent);
-        Set("CardFillBrush", t.OutlineCards ? Colors.Transparent : t.Surface);
-        Set("CardStrokeBrush", t.OutlineCards ? t.Border : WithAlpha(t.Border, 0.5));
+        AnimateColor(BgTopStop, GradientStop.ColorProperty, t.GradTop, dur);
+        AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
+        AnimateColor(BgEndStop, GradientStop.ColorProperty, t.GradEnd, dur);
+        AnimateColor(StripTopStop, GradientStop.ColorProperty, WithAlpha(t.GradTop, 0.9), dur);
+        AnimateColor(StripEndStop, GradientStop.ColorProperty, WithAlpha(t.GradEnd, 0.9), dur);
 
-        SetStop(BgTopStop, t.BgTop);
-        SetStop(BgBottomStop, t.BgBottom);
-        SetStop(StripTopStop, WithAlpha(t.BgTop, 0.88));
-        SetStop(StripBottomStop, WithAlpha(t.BgBottom, 0.88));
+        double border = t.Border.A > 0 ? 1 : 0;
+        Capsule.BorderThickness = new Thickness(border);
+        LyricsStrip.BorderThickness = new Thickness(border);
 
-        Capsule.BorderThickness = new Thickness(t.BorderThickness);
-        LyricsStrip.BorderThickness = new Thickness(t.BorderThickness);
-        ShadowEffect.Opacity = t.IsLight ? 0.25 : 0.45;
-
-        if (animate)
-        {
-            GlowEffect.BeginAnimation(DropShadowEffect.ColorProperty, new ColorAnimation(t.Glow, dur));
-            GlowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, new DoubleAnimation(t.Glow.A / 255.0, dur));
-        }
-        else
-        {
-            GlowEffect.Color = t.Glow;
-            GlowEffect.Opacity = t.Glow.A / 255.0;
-        }
+        // one effect only: coloured glow for coloured themes, otherwise a soft black shadow
+        var glowColor = t.HasGlow ? Color.FromRgb(t.Glow.R, t.Glow.G, t.Glow.B) : Colors.Black;
+        double glowOpacity = t.HasGlow ? t.Glow.A / 255.0 : t.ShadowOpacity;
+        GlowEffect.ShadowDepth = t.HasGlow ? 0 : 6;
+        GlowEffect.BlurRadius = t.HasGlow ? 26 : 24;
+        AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, glowColor, dur);
+        AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, glowOpacity, dur);
+        StripShadow.Color = glowColor;
+        StripShadow.ShadowDepth = t.HasGlow ? 0 : 4;
+        StripShadow.Opacity = t.HasGlow ? glowOpacity * 0.8 : 0.4;
 
         UpdateTint(animate ? 250 : 0);
-        _shownIndex = int.MinValue;   // redraw the lyric line with the new colours
+        _shownIndex = int.MinValue;   // redraw the lyric line
         RefreshThemeCards();
-        SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate);
-        SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate);
+        RefreshToggles();
+        RefreshChips();
+        Capsule_SizeChanged(Capsule, null);
+    }
+
+    private void SetBrush(string key, Color to, bool animate)
+    {
+        Color from = Resources[key] is SolidColorBrush old ? old.Color : to;
+        var b = new SolidColorBrush(animate ? from : to);
+        if (animate && from != to)
+            b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(from, to, TimeSpan.FromMilliseconds(250)));
+        Resources[key] = b;
+    }
+
+    private static void AnimateColor(Animatable target, DependencyProperty prop, Color to, TimeSpan dur)
+    {
+        if (dur > TimeSpan.Zero) target.BeginAnimation(prop, new ColorAnimation(to, dur));
+        else { target.BeginAnimation(prop, null); target.SetValue(prop, to); }
+    }
+
+    private static void AnimateDouble(Animatable target, DependencyProperty prop, double to, TimeSpan dur)
+    {
+        if (dur > TimeSpan.Zero) target.BeginAnimation(prop, new DoubleAnimation(to, dur));
+        else { target.BeginAnimation(prop, null); target.SetValue(prop, to); }
     }
 
     private static Color WithAlpha(Color c, double alpha)
@@ -223,39 +199,95 @@ public partial class IslandWindow : Window
         return c;
     }
 
-    /// <summary>Colour blob in the top-right corner: artwork colour, or the accent when idle.</summary>
-    private void UpdateTint(int ms)
+    private static Color Hex(string hex)
     {
-        Color c;
-        if (!_theme.ArtworkTint)
-            c = Colors.Transparent;
-        else if (_artColor is Color art && _track != null)
-            c = WithAlpha(art, _theme.TintOpacity);
-        else
-            c = WithAlpha(_theme.Accent, _theme.IsLight ? 0.06 : 0.10);
-
-        if (ms > 0) TintStop.BeginAnimation(GradientStop.ColorProperty, new ColorAnimation(c, TimeSpan.FromMilliseconds(ms)));
-        else { TintStop.BeginAnimation(GradientStop.ColorProperty, null); TintStop.Color = c; }
+        try { return (Color)ColorConverter.ConvertFromString(hex); }
+        catch { return Colors.DodgerBlue; }
     }
 
-    private Color? _artColor;
+    /// <summary>
+    /// Collapsed: horizontal, colour on the left flowing into black on the right.
+    /// Expanded: diagonal from the top-left corner: GradTop 0 % → GradMid 35 % → black 75 %.
+    /// </summary>
+    private void SetGradientShape(bool expanded, int ms)
+    {
+        var dur = TimeSpan.FromMilliseconds(ms);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        void P(DependencyProperty prop, Point to)
+        {
+            if (ms > 0) BgBrush.BeginAnimation(prop, new PointAnimation(to, dur) { EasingFunction = ease });
+            else { BgBrush.BeginAnimation(prop, null); BgBrush.SetValue(prop, to); }
+        }
+        void O(GradientStop s, double to)
+        {
+            if (ms > 0) s.BeginAnimation(GradientStop.OffsetProperty, new DoubleAnimation(to, dur) { EasingFunction = ease });
+            else { s.BeginAnimation(GradientStop.OffsetProperty, null); s.Offset = to; }
+        }
+        P(LinearGradientBrush.StartPointProperty, expanded ? new Point(0, 0) : new Point(0, 0.5));
+        P(LinearGradientBrush.EndPointProperty, expanded ? new Point(1, 1) : new Point(1, 0.5));
+        O(BgMidStop, expanded ? 0.35 : 0.5);
+        O(BgEndStop, expanded ? 0.75 : 1.0);
+    }
+
+    /// <summary>Colour blob in the top-right corner: weather on the weather tab, otherwise the artwork (OLED and White only).</summary>
+    private void UpdateTint(int ms)
+    {
+        Color c = Colors.Transparent;
+        if (_expanded && _page == "weather" && WeatherTint() is Color w)
+            c = w;
+        else if (_theme.ArtworkTint && _artColor is Color art && _track != null)
+            c = WithAlpha(art, _theme.TintOpacity);
+        else if (_theme.ArtworkTint)
+            c = WithAlpha(_theme.Accent, _theme.IsLight ? 0.06 : 0.08);
+
+        AnimateColor(TintStop, GradientStop.ColorProperty, c, TimeSpan.FromMilliseconds(ms));
+    }
+
+    // ================= Shape: everything inside is clipped to the rounded capsule
+
+    private void Capsule_SizeChanged(object sender, SizeChangedEventArgs? e)
+    {
+        double w = Capsule.ActualWidth, h = Capsule.ActualHeight;
+        if (w <= 0 || h <= 0) return;
+        double bt = Capsule.BorderThickness.Left;
+        double r = Math.Max(0, Math.Min(h / 2, 28) - bt);
+        CapsuleContent.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(0, w - 2 * bt), Math.Max(0, h - 2 * bt)), r, r);
+    }
+
+    /// <summary>After a size animation: repaint the whole layered window so no pixels of the larger size remain.</summary>
+    private void Repaint()
+    {
+        WindowRoot.Opacity = 0.999;
+        WindowRoot.InvalidateVisual();
+        Dispatcher.InvokeAsync(() => WindowRoot.Opacity = 1, DispatcherPriority.Render);
+    }
 
     // ================= Expand / collapse
 
     private void Capsule_MouseEnter(object sender, MouseEventArgs e)
     {
         _collapseTimer.Stop();
+        if (_activity != null) DismissActivity(openCalendar: true);
         if (_expanded) return;
         _expandTimer.Start();
-        // anticipation: grow a little before opening
-        Scale(RootScale, 1.02, 150);
+        Scale(RootScale, 1.02, 150);   // anticipation
     }
 
     private void Capsule_MouseLeave(object sender, MouseEventArgs e)
     {
         _expandTimer.Stop();
         if (!_expanded) { Scale(RootScale, 1, 150); return; }
-        _collapseTimer.Start();
+        if (!_keyboard) _collapseTimer.Start();
+    }
+
+    private void OnDeactivated(object? sender, EventArgs e)
+    {
+        // clicked into another app while typing: give the keyboard back and let the island close
+        if (!_keyboard) return;
+        _keyboard = false;
+        Keyboard.ClearFocus();
+        Native.SetNoActivate(_hwnd, true);
+        if (_expanded && !Capsule.IsMouseOver) _collapseTimer.Start();
     }
 
     private static void Scale(ScaleTransform st, double to, int ms)
@@ -267,12 +299,14 @@ public partial class IslandWindow : Window
 
     private double PageHeight(string page) => page switch
     {
-        "music" => _lyrics != null && _track != null && _track.Key == _lyrKey ? MusicWithLyricsH : MusicH,
+        "music" => HasLyricsForTrack ? MusicWithLyricsH : MusicH,
+        "calendar" => CalendarH,
+        "weather" => WeatherH,
         "settings" => SettingsH,
         _ => HomeH,
     };
 
-    private double CollapsedWidth => _track != null ? CollapsedW : IdleW;
+    private double CollapsedWidth => _activity != null ? ActivityW : _track != null ? PlayingW : IdleW;
 
     private void Expand()
     {
@@ -280,30 +314,41 @@ public partial class IslandWindow : Window
         Scale(RootScale, 1, 120);
         var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.25 };
         AnimateSize(ExpandedW, PageHeight(_page), 380, spring);
+        SetGradientShape(expanded: true, ms: 380);
         Fade(CollapsedView, 0, 120, 0);
         ExpandedView.Visibility = Visibility.Visible;
         Fade(ExpandedView, 1, 180, 120);
         Slide(ExpandedShift, 6, 0, 180, 120);
         UpdateStrip();
-        _uiTimer.Interval = TimeSpan.FromMilliseconds(50);
+        OnPageShown(_page);
     }
 
     private void Collapse()
     {
         _expanded = false;
+        DisableKeyboard();
         if (_dragging) { _dragging = false; ProgressTrack.ReleaseMouseCapture(); }
+        if (_volDragging) { _volDragging = false; VolumeTrack.ReleaseMouseCapture(); }
+        CloseEventForm(animate: false);
+        ClearPlaceSearch();
+        _highlightId = null;
         AnimateSize(CollapsedWidth, CollapsedH, 260, new CubicEase { EasingMode = EasingMode.EaseInOut });
+        SetGradientShape(expanded: false, ms: 260);
         var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(120));
         fade.Completed += (_, _) => { if (!_expanded) ExpandedView.Visibility = Visibility.Collapsed; };
         ExpandedView.BeginAnimation(OpacityProperty, fade);
         Fade(CollapsedView, 1, 200, 120);
         UpdateStrip();
+        UpdateTint(300);
+        ShowPendingReminder();
     }
 
     private void AnimateSize(double w, double h, int ms, IEasingFunction ease)
     {
         var dur = TimeSpan.FromMilliseconds(ms);
-        Capsule.BeginAnimation(FrameworkElement.WidthProperty, new DoubleAnimation(w, dur) { EasingFunction = ease });
+        var wa = new DoubleAnimation(w, dur) { EasingFunction = ease };
+        wa.Completed += (_, _) => Repaint();
+        Capsule.BeginAnimation(FrameworkElement.WidthProperty, wa);
         Capsule.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(h, dur) { EasingFunction = ease });
     }
 
@@ -325,9 +370,35 @@ public partial class IslandWindow : Window
         });
     }
 
+    /// <summary>Collapsed content: reminder activity, else the playing row, else the idle clock. Animates the width.</summary>
+    private void UpdateCollapsedRow()
+    {
+        FrameworkElement want = _activity != null ? ActivityRow : _track != null ? PlayingRow : IdleRow;
+        foreach (var row in new FrameworkElement[] { ActivityRow, PlayingRow, IdleRow })
+        {
+            if (row == want)
+            {
+                if (row.Visibility != Visibility.Visible)
+                {
+                    row.Visibility = Visibility.Visible;
+                    row.Opacity = 0;
+                    Fade(row, 1, 200, 80);
+                }
+            }
+            else if (row.Visibility == Visibility.Visible)
+            {
+                row.BeginAnimation(OpacityProperty, null);
+                row.Opacity = 0;
+                row.Visibility = Visibility.Collapsed;
+            }
+        }
+        if (!_expanded && Math.Abs(Capsule.Width - CollapsedWidth) > 0.5)
+            AnimateSize(CollapsedWidth, CollapsedH, _loading ? 0 : 300, new CubicEase { EasingMode = EasingMode.EaseInOut });
+    }
+
     // ================= Tabs
 
-    private static readonly string[] Pages = { "home", "music", "settings" };
+    private static readonly string[] Pages = { "home", "music", "calendar", "weather", "settings" };
 
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
@@ -337,6 +408,8 @@ public partial class IslandWindow : Window
     private FrameworkElement PageElement(string page) => page switch
     {
         "music" => MusicPage,
+        "calendar" => CalendarPage,
+        "weather" => WeatherPage,
         "settings" => SettingsPage,
         _ => HomePage,
     };
@@ -346,16 +419,17 @@ public partial class IslandWindow : Window
         string old = _page;
         _page = page;
         int dir = Math.Sign(Array.IndexOf(Pages, page) - Array.IndexOf(Pages, old));
+        if (old == "calendar" && page != "calendar") CloseEventForm(animate: false);
+        if (old == "settings" && page != "settings") ClearPlaceSearch();
+        if (page != old) DisableKeyboard();
 
-        // pill slides to the active tab
         double x = Array.IndexOf(Pages, page) * 40;
         TabPillShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(x, TimeSpan.FromMilliseconds(animate ? 220 : 0))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
         });
-        TabHome.SetResourceReference(ForegroundProperty, page == "home" ? "TabActiveBrush" : "SubBrush");
-        TabMusic.SetResourceReference(ForegroundProperty, page == "music" ? "TabActiveBrush" : "SubBrush");
-        TabSettings.SetResourceReference(ForegroundProperty, page == "settings" ? "TabActiveBrush" : "SubBrush");
+        foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabSettings, "settings") })
+            tab.SetResourceReference(ForegroundProperty, page == name ? "FgBrush" : "SubBrush");
         SmallClock.Visibility = page == "home" ? Visibility.Collapsed : Visibility.Visible;
 
         var incoming = PageElement(page);
@@ -387,260 +461,22 @@ public partial class IslandWindow : Window
         inTt.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(8 * dir, 0, ms) { EasingFunction = ease });
         incoming.BeginAnimation(OpacityProperty, new DoubleAnimation(1, ms) { EasingFunction = ease });
 
-        if (_expanded) AnimateSize(ExpandedW, PageHeight(page), animate ? 220 : 0, new CubicEase { EasingMode = EasingMode.EaseInOut });
+        if (_expanded)
+        {
+            AnimateSize(ExpandedW, PageHeight(page), animate ? 220 : 0, new CubicEase { EasingMode = EasingMode.EaseInOut });
+            OnPageShown(page);
+        }
+        UpdateTint(animate ? 300 : 0);
     }
 
-    // ================= Media
-
-    private async Task PollAsync()
+    private void OnPageShown(string page)
     {
-        if (_polling) return;
-        _polling = true;
-        try
-        {
-            PlaceOnScreen();
-            var t = await _media.ReadAsync();
-            if (!_dragging) _track = t;
-            else if (t != null && _track != null) _track = t with { PositionSec = _track.PositionSec, PositionStampUtc = _track.PositionStampUtc };
-            ShowTrack(_track);
-            if (_track != null) UpdateLyricsSource(_track);
-        }
-        catch (Exception ex)
-        {
-            Log.Write("media poll failed: " + ex.Message);
-        }
-        finally
-        {
-            _polling = false;
-        }
+        if (page == "weather") RefreshWeatherIfStale(TimeSpan.FromMinutes(10));
+        if (page == "calendar") RenderCalendar(animateDir: 0);
+        if (page == "music") RefreshVolume(force: true);
     }
 
-    private void ShowTrack(TrackSnapshot? t)
-    {
-        bool has = t != null;
-        bool playing = t?.IsPlaying == true;
-
-        // collapsed: playing row vs idle row
-        if (has && PlayingRow.Visibility != Visibility.Visible)
-        {
-            IdleRow.Visibility = Visibility.Collapsed;
-            PlayingRow.Visibility = Visibility.Visible;
-            Fade(PlayingRow, 1, 200, 0);
-            if (!_expanded) AnimateSize(CollapsedW, CollapsedH, 300, new CubicEase { EasingMode = EasingMode.EaseInOut });
-        }
-        else if (!has && IdleRow.Visibility != Visibility.Visible)
-        {
-            PlayingRow.Visibility = Visibility.Collapsed;
-            IdleRow.Visibility = Visibility.Visible;
-            Fade(IdleRow, 1, 200, 0);
-            if (!_expanded) AnimateSize(IdleW, CollapsedH, 300, new CubicEase { EasingMode = EasingMode.EaseInOut });
-        }
-
-        // paused look: dim title and art
-        MiniTitle.SetForegroundResource(playing ? "FgBrush" : "SubBrush");
-        MiniArtBox.Opacity = playing ? 1 : 0.7;
-
-        string playIcon = playing ? "" : "";
-        string playTip = playing ? "Пауза" : "Играть";
-        if ((string)MusicPlay.Content != playIcon)
-        {
-            SwapIcon(MusicPlay, playIcon);
-            SwapIcon(HomePlay, playIcon);
-            MusicPlay.ToolTip = playTip;
-            HomePlay.ToolTip = playTip;
-        }
-
-        HomeMusic.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
-        HomeEmpty.Visibility = has ? Visibility.Collapsed : Visibility.Visible;
-        MusicButtons.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
-        ProgressTrack.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
-        SourceRow.Visibility = has && !string.IsNullOrEmpty(t!.Source) ? Visibility.Visible : Visibility.Collapsed;
-
-        HintText.Text = !has ? "Тишина" : playing ? (string.IsNullOrEmpty(t!.Source) ? "Играет" : "Играет в " + t.Source) : "На паузе";
-
-        if (t == null)
-        {
-            if (_shownKey != "")
-            {
-                _shownKey = "";
-                _hasArt = false;
-                _artColor = null;
-                MusicTitle.Text = "Ничего не играет";
-                MusicArtist.Text = "Включи музыку в любом плеере";
-                TimeLeft.Text = "";
-                TimeRight.Text = "";
-                SetArt(null, animate: true);
-                UpdateTint(600);
-            }
-            UpdateStrip();
-            return;
-        }
-
-        bool newTrack = t.Key != _shownKey;
-        if (newTrack || (!_hasArt && t.Thumbnail != null))
-        {
-            _shownKey = t.Key;
-            MiniTitle.Text = t.Title;
-            MusicTitle.Text = t.Title;
-            HomeTitle.Text = t.Title;
-            MusicArtist.Text = t.Artist;
-            HomeArtist.Text = t.Artist;
-            SourceText.Text = t.Source;
-            var img = ToImage(t.Thumbnail);
-            _hasArt = img != null;
-            _artColor = ArtColor.Dominant(t.Thumbnail);
-            SetArt(img, animate: !_loading);
-            UpdateTint(600);
-            if (newTrack && !_loading) Squish();
-        }
-        UpdateStrip();
-    }
-
-    /// <summary>Crossfade the artwork into all three slots; the big one "presses in" 0.96 → 1.</summary>
-    private void SetArt(BitmapImage? img, bool animate)
-    {
-        foreach (var image in new[] { MiniArt, HomeArt, BigArt })
-        {
-            if (!animate) { image.Source = img; continue; }
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110));
-            var target = image;
-            fadeOut.Completed += (_, _) =>
-            {
-                target.Source = img;
-                target.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(110)));
-            };
-            image.BeginAnimation(OpacityProperty, fadeOut);
-        }
-        if (animate)
-        {
-            var press = new DoubleAnimationUsingKeyFrames();
-            press.KeyFrames.Add(new LinearDoubleKeyFrame(0.96, TimeSpan.FromMilliseconds(110)));
-            press.KeyFrames.Add(new EasingDoubleKeyFrame(1, TimeSpan.FromMilliseconds(220), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }));
-            BigArtScale.BeginAnimation(ScaleTransform.ScaleXProperty, press);
-            BigArtScale.BeginAnimation(ScaleTransform.ScaleYProperty, press);
-        }
-    }
-
-    /// <summary>Light width "squish" of the capsule when the track changes.</summary>
-    private void Squish()
-    {
-        double w = _expanded ? ExpandedW : CollapsedWidth;
-        var a = new DoubleAnimationUsingKeyFrames();
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w * 1.03, TimeSpan.FromMilliseconds(110), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w, TimeSpan.FromMilliseconds(220), new QuadraticEase { EasingMode = EasingMode.EaseInOut }));
-        Capsule.BeginAnimation(FrameworkElement.WidthProperty, a);
-    }
-
-    /// <summary>Play ↔ pause icon change: rotate + fade.</summary>
-    private static void SwapIcon(Button b, string icon)
-    {
-        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(75));
-        fade.Completed += (_, _) =>
-        {
-            b.Content = icon;
-            b.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(75)));
-        };
-        b.BeginAnimation(OpacityProperty, fade);
-    }
-
-    private static BitmapImage? ToImage(byte[]? data)
-    {
-        if (data == null || data.Length == 0) return null;
-        try
-        {
-            var bmp = new BitmapImage();
-            using var ms = new MemoryStream(data);
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.DecodePixelWidth = 240;
-            bmp.StreamSource = ms;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async void PlayPause_Click(object sender, RoutedEventArgs e)
-    {
-        if (_track != null)
-        {
-            var now = DateTime.UtcNow;
-            _track = _track with { IsPlaying = !_track.IsPlaying, PositionSec = _track.PositionAt(now), PositionStampUtc = now };
-            ShowTrack(_track);
-        }
-        await _media.PlayPauseAsync();
-    }
-
-    private async void Next_Click(object sender, RoutedEventArgs e) => await _media.NextAsync();
-
-    private async void Previous_Click(object sender, RoutedEventArgs e)
-    {
-        // like most players: restart the track unless we are in its first 3 seconds
-        if (_track != null && _track.PositionAt(DateTime.UtcNow) > 3)
-        {
-            _track = _track with { PositionSec = 0, PositionStampUtc = DateTime.UtcNow };
-            await _media.SeekAsync(0);
-            return;
-        }
-        await _media.PreviousAsync();
-    }
-
-    private void HomeArt_Click(object sender, MouseButtonEventArgs e) => SelectTab("music", animate: true);
-
-    // ----- progress bar: hover grows, click and drag seek with a preview
-
-    private void Progress_MouseEnter(object sender, MouseEventArgs e)
-    {
-        AnimateHeight(ProgressBg, 6); AnimateHeight(ProgressFill, 6);
-        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
-    }
-
-    private void Progress_MouseLeave(object sender, MouseEventArgs e)
-    {
-        if (_dragging) return;
-        AnimateHeight(ProgressBg, 4); AnimateHeight(ProgressFill, 4);
-        ProgressThumb.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(120)));
-    }
-
-    private static void AnimateHeight(FrameworkElement el, double to) =>
-        el.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(120)));
-
-    private void Progress_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (_track == null || _track.DurationSec <= 0) return;
-        _dragging = true;
-        _dragFraction = Fraction(e.GetPosition(ProgressTrack).X);
-        ProgressTrack.CaptureMouse();
-    }
-
-    private void Progress_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_dragging) return;
-        _dragFraction = Fraction(e.GetPosition(ProgressTrack).X);
-    }
-
-    private async void Progress_MouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_dragging) return;
-        _dragging = false;
-        ProgressTrack.ReleaseMouseCapture();
-        _dragFraction = Fraction(e.GetPosition(ProgressTrack).X);
-        if (_track == null || _track.DurationSec <= 0) return;
-        double target = _dragFraction * _track.DurationSec;
-        _track = _track with { PositionSec = target, PositionStampUtc = DateTime.UtcNow };
-        if (!ProgressTrack.IsMouseOver) Progress_MouseLeave(sender, e);
-        await _media.SeekAsync(target);
-    }
-
-    private double Fraction(double x) => ProgressTrack.ActualWidth <= 0 ? 0 : Math.Clamp(x / ProgressTrack.ActualWidth, 0, 1);
-
-    private void TimeRight_Click(object sender, MouseButtonEventArgs e) => _showTotal = !_showTotal;
-
-    // ================= 50 ms tick: clocks, equalizer, progress, lyric line
+    // ================= 50 ms tick
 
     private void UiTick()
     {
@@ -649,268 +485,81 @@ public partial class IslandWindow : Window
         if (MiniClock.Text != hm)
         {
             MiniClock.Text = hm; IdleClock.Text = hm; BigClock.Text = hm; SmallClock.Text = hm;
-            string date = local.ToString("dddd, d MMMM", Ru);
-            DateText.Text = Capital(date);
+            DateText.Text = Capital(local.ToString("dddd, d MMMM", Ru));
             IdleDate.Text = Capital(local.ToString("ddd, d MMM", Ru).Replace(".", ""));
         }
 
-        // equalizer: ease each bar toward its target
-        var bars = new[] { Bar0, Bar1, Bar2, Bar3 };
-        for (int i = 0; i < bars.Length; i++)
+        MusicTick(local);
+
+        if (local.Second != _lastSecond)
         {
-            _eqNow[i] += (_eqTarget[i] - _eqNow[i]) * 0.35;
-            bars[i].Height = Math.Round(_eqNow[i], 1);
+            _lastSecond = local.Second;
+            CalendarSecondTick(local);
+            WeatherSecondTick();
         }
-
-        var track = _track;
-        double pos = track?.PositionAt(DateTime.UtcNow) ?? 0;
-        if (track != null && _expanded)
-        {
-            double dur = track.DurationSec;
-            double frac = _dragging ? _dragFraction : (dur > 0 ? Math.Clamp(pos / dur, 0, 1) : 0);
-            if (_page == "music")
-            {
-                double w = ProgressTrack.ActualWidth;
-                ProgressFill.Width = w * frac;
-                ProgressThumb.Margin = new Thickness(w * frac - 6, 0, 0, 0);
-                double shown = _dragging ? frac * dur : pos;
-                TimeLeft.Text = Fmt(shown);
-                TimeRight.Text = dur > 0 ? (_showTotal ? Fmt(dur) : "-" + Fmt(Math.Max(0, dur - shown))) : "";
-                UpdateLyricsPreview(pos);
-            }
-            else if (_page == "home")
-            {
-                HomeProgress.Width = Math.Max(0, HomeProgressTrack.ActualWidth * frac);
-            }
-        }
-
-        UpdateLyricLine(local.TimeOfDay.TotalSeconds, pos);
-    }
-
-    private void RetargetEqualizer()
-    {
-        bool playing = _track?.IsPlaying == true;
-        for (int i = 0; i < _eqTarget.Length; i++)
-            _eqTarget[i] = playing ? 4 + Rng.NextDouble() * 12 : 3;
     }
 
     private static string Capital(string s) => s.Length > 0 ? char.ToUpper(s[0], Ru) + s.Substring(1) : s;
 
-    private static string Fmt(double sec)
+    // ================= Keyboard (fields)
+
+    private void EnableKeyboard()
     {
-        int s = (int)Math.Max(0, sec);
-        return $"{s / 60}:{s % 60:00}";
+        if (_keyboard || _hwnd == IntPtr.Zero) return;
+        _keyboard = true;
+        _collapseTimer.Stop();
+        var fg = Native.GetForegroundWindow();
+        _previousForeground = fg != _hwnd ? fg : IntPtr.Zero;
+        Native.SetNoActivate(_hwnd, false);
+        Activate();
     }
 
-    // ================= Lyrics (matching rules live in LyricsService, ported from the Mac version)
-
-    private void UpdateLyricsSource(TrackSnapshot t)
+    private void DisableKeyboard()
     {
-        if (!_settings.ShowLyrics) return;
-        var now = DateTime.UtcNow;
-
-        if (t.Key != _lyrKey)
-        {
-            _lyrKey = t.Key;
-            _lyrics = null;
-            _lyrAttempts = 0;
-            _lyrRetryAt = now;
-            _noDurationSince = null;
-            _shownIndex = int.MinValue;
-            _previewIndex = int.MinValue;
-            UpdateStrip();
-        }
-
-        // Wait for the duration so we do not match the wrong song; after 5 s search without it.
-        double duration = t.DurationSec;
-        if (duration <= 0)
-        {
-            _noDurationSince ??= now;
-            if (now - _noDurationSince.Value < TimeSpan.FromSeconds(5)) return;
-        }
-        else _noDurationSince = null;
-
-        bool due = _lyrics == null && _lyrRetryAt.HasValue && now >= _lyrRetryAt.Value;
-        if (!due) return;
-        if (_lyrBusy)
-        {
-            _lyrRetryAt = now;   // search again as soon as the running search ends
-            return;
-        }
-
-        _lyrAttempts++;
-        _lyrRetryAt = null;
-        _lyrBusy = true;
-        string key = t.Key, title = t.Title, artist = t.Artist;
-        _ = Task.Run(async () =>
-        {
-            LyricsResult? result = null;
-            bool failed = false;
-            try { result = await LyricsService.FindAsync(title, artist, duration); }
-            catch { failed = true; }
-            await Dispatcher.InvokeAsync(() =>
-            {
-                _lyrBusy = false;
-                if (key != _lyrKey) { _lyrRetryAt = DateTime.UtcNow; return; }
-                if (result != null)
-                {
-                    _lyrics = result;
-                    _shownIndex = int.MinValue;
-                    _previewIndex = int.MinValue;
-                    if (_expanded && _page == "music")
-                        AnimateSize(ExpandedW, PageHeight("music"), 220, new CubicEase { EasingMode = EasingMode.EaseInOut });
-                }
-                else if (failed && _lyrAttempts < 4)
-                {
-                    _lyrRetryAt = DateTime.UtcNow.AddSeconds(15);
-                }
-                UpdateStrip();
-            });
-        });
+        if (!_keyboard) return;
+        _keyboard = false;
+        Keyboard.ClearFocus();
+        Native.SetNoActivate(_hwnd, true);
+        if (Native.GetForegroundWindow() == _hwnd && _previousForeground != IntPtr.Zero && Native.IsWindow(_previousForeground))
+            Native.SetForegroundWindow(_previousForeground);
+        _previousForeground = IntPtr.Zero;
     }
 
-    private void UpdateStrip()
+    private void FocusField(TextBox box)
     {
-        bool show = _settings.ShowLyrics && !_expanded && _track?.IsPlaying == true && _lyrics != null && _track.Key == _lyrKey;
-        if (show && LyricsStrip.Visibility != Visibility.Visible)
+        EnableKeyboard();
+        Dispatcher.InvokeAsync(() =>
         {
-            LyricsStrip.Visibility = Visibility.Visible;
-            Fade(LyricsStrip, 1, 150, 0);
-        }
-        else if (!show && LyricsStrip.Visibility == Visibility.Visible)
+            box.Focus();
+            Keyboard.Focus(box);
+            box.CaretIndex = box.Text.Length;
+        }, DispatcherPriority.Input);
+    }
+
+    // ================= Thin scroll bars: visible only while scrolling
+
+    private readonly Dictionary<ScrollViewer, DispatcherTimer> _scrollHide = new();
+
+    private void ThinScroll_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (e.VerticalChange == 0 || sender is not ScrollViewer sv) return;
+        if (sv.Template?.FindName("PART_VerticalScrollBar", sv) is not System.Windows.Controls.Primitives.ScrollBar bar) return;
+        bar.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+        if (!_scrollHide.TryGetValue(sv, out var timer))
         {
-            var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(150));
-            fade.Completed += (_, _) =>
+            timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+            timer.Tick += (_, _) =>
             {
-                if (LyricsStrip.Opacity < 0.01) LyricsStrip.Visibility = Visibility.Collapsed;
+                timer.Stop();
+                bar.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(250)));
             };
-            LyricsStrip.BeginAnimation(OpacityProperty, fade);
+            _scrollHide[sv] = timer;
         }
-        LyricsPreview.Visibility = _lyrics != null && _track != null && _track.Key == _lyrKey ? Visibility.Visible : Visibility.Collapsed;
+        timer.Stop();
+        timer.Start();
     }
 
-    /// <summary>Current line index at a position; -1 before the first line. Also reports long instrumental gaps.</summary>
-    private int LineAt(double pos, out bool longBreak)
-    {
-        longBreak = false;
-        var lyr = _lyrics!;
-        int count = lyr.Lines.Count;
-        if (lyr.Times == null || lyr.Times.Count != count)
-            return _track != null && _track.DurationSec > 0 ? Math.Min(count - 1, (int)(pos / _track.DurationSec * count)) : 0;
-
-        int index = -1;
-        for (int i = 0; i < count; i++)
-        {
-            if (lyr.Times[i] <= pos + 0.15) index = i;
-            else break;
-        }
-        if (index >= 0)
-        {
-            double start = lyr.Times[index];
-            double length = Math.Max(0.5, (index + 1 < count ? lyr.Times[index + 1] : start + 5) - start);
-            double elapsed = pos - start;
-            double sing = Math.Min(length * 0.95, Math.Max(1.2, lyr.Lines[index].Length * 0.075));
-            longBreak = length > 7 && elapsed > sing + 1.5 && length - elapsed > 2;
-        }
-        return index;
-    }
-
-    private void UpdateLyricLine(double t, double pos)
-    {
-        if (_lyrics == null || _track == null || LyricsStrip.Visibility != Visibility.Visible) return;
-        int index = LineAt(pos, out bool longBreak);
-        bool dots = index < 0 || longBreak;
-
-        if (dots)
-        {
-            if (!_shownDots)
-            {
-                _shownDots = true;
-                LyricText.Visibility = Visibility.Collapsed;
-                Dots.Visibility = Visibility.Visible;
-            }
-            var all = new[] { Dot0, Dot1, Dot2 };
-            for (int i = 0; i < all.Length; i++)
-                all[i].Opacity = 0.3 + 0.7 * (0.5 + 0.5 * Math.Sin(t * (2 * Math.PI / 1.2) - i * 1.05));
-            return;
-        }
-
-        if (_shownDots)
-        {
-            _shownDots = false;
-            Dots.Visibility = Visibility.Collapsed;
-            LyricText.Visibility = Visibility.Visible;
-            _shownIndex = int.MinValue;
-        }
-        if (index == _shownIndex) return;
-        _shownIndex = index;
-        RenderLine(_lyrics.Lines[index]);
-    }
-
-    /// <summary>Lead vocal bold; backing vocals in parentheses smaller, italic and dimmer.</summary>
-    private void RenderLine(string line)
-    {
-        LyricText.Inlines.Clear();
-        bool first = true;
-        foreach (var (text, adlib) in SplitParts(line))
-        {
-            if (adlib)
-            {
-                var run = new Run((first ? "" : " ") + "(" + text.Trim() + ")") { FontSize = 13, FontStyle = FontStyles.Italic, FontWeight = FontWeights.Normal };
-                run.SetResourceReference(TextElement.ForegroundProperty, "SubBrush");
-                LyricText.Inlines.Add(run);
-            }
-            else
-            {
-                LyricText.Inlines.Add(new Run(first ? text.TrimStart() : text));
-            }
-            first = false;
-        }
-        var dur = TimeSpan.FromMilliseconds(220);
-        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-        LyricText.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
-        LyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, dur) { EasingFunction = ease });
-    }
-
-    private void UpdateLyricsPreview(double pos)
-    {
-        if (_lyrics == null || LyricsPreview.Visibility != Visibility.Visible) return;
-        int index = LineAt(pos, out _);
-        if (index == _previewIndex) return;
-        _previewIndex = index;
-        var lines = _lyrics.Lines;
-        PreviewCurrent.Text = index >= 0 ? lines[index] : "…";
-        PreviewNext.Text = index + 1 < lines.Count ? lines[index + 1] : "";
-        var dur = TimeSpan.FromMilliseconds(220);
-        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
-        PreviewCurrent.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
-        PreviewShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, dur) { EasingFunction = ease });
-    }
-
-    private static List<(string Text, bool Adlib)> SplitParts(string line)
-    {
-        var parts = new List<(string Text, bool Adlib)>();
-        var cur = new System.Text.StringBuilder();
-        int depth = 0;
-        foreach (char ch in line)
-        {
-            if (ch == '(')
-            {
-                if (depth == 0 && cur.Length > 0) { parts.Add((cur.ToString(), false)); cur.Clear(); }
-                depth++;
-            }
-            else if (ch == ')' && depth > 0)
-            {
-                depth--;
-                if (depth == 0) { parts.Add((cur.ToString(), true)); cur.Clear(); }
-            }
-            else cur.Append(ch);
-        }
-        if (cur.Length > 0) parts.Add((cur.ToString(), depth > 0));
-        return parts.Where(p => p.Text.Trim().Length > 0).ToList();
-    }
-
-    // ================= Settings
+    // ================= Settings: theme cards
 
     private void BuildThemeCards()
     {
@@ -918,58 +567,73 @@ public partial class IslandWindow : Window
         _themeCards.Clear();
         foreach (var theme in Themes.All)
         {
-            // mini capsule in the theme's own colours
-            var mini = new Border
-            {
-                Width = 60, Height = 16, CornerRadius = new CornerRadius(8),
-                Background = new LinearGradientBrush(theme.BgTop, theme.BgBottom, 90),
-                BorderBrush = new SolidColorBrush(theme.Border),
-                BorderThickness = new Thickness(Math.Min(theme.BorderThickness, 1)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 12, 0, 6),
-            };
-            if (theme.Glow.A > 0)
-                mini.Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 0, Color = theme.Glow, Opacity = theme.Glow.A / 255.0 };
-            var inner = new Grid();
-            inner.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(theme.Accent), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(5, 0, 0, 0) });
-            var bars = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 6, 0) };
-            foreach (var h in new[] { 5, 9, 6 })
-                bars.Children.Add(new Rectangle { Width = 2, Height = h, RadiusX = 1, RadiusY = 1, Margin = new Thickness(1, 0, 1, 0), Fill = new SolidColorBrush(theme.Equalizer), VerticalAlignment = VerticalAlignment.Center });
-            inner.Children.Add(bars);
-            mini.Child = inner;
-
-            var label = new TextBlock { Text = theme.Name, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
-            label.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
-
-            var check = new Border
-            {
-                Width = 16, Height = 16, CornerRadius = new CornerRadius(8),
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 4, 4, 0), Visibility = Visibility.Collapsed,
-            };
-            check.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
-            var tick = new TextBlock { Text = "", FontFamily = (FontFamily)FindResource("Icons"), FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            tick.SetResourceReference(TextBlock.ForegroundProperty, "AccentFgBrush");
-            check.Child = tick;
-
-            var content = new Grid();
-            var column = new StackPanel();
-            column.Children.Add(mini);
-            column.Children.Add(label);
-            content.Children.Add(column);
-            content.Children.Add(check);
-
-            var card = new Button { Content = content, Style = (Style)FindResource("ThemeCard"), Tag = theme.Name, ToolTip = theme.Name };
-            card.Click += (_, _) =>
-            {
-                _settings.Theme = theme.Name;
-                _settings.Save();
-                ApplyTheme(theme, animate: true);
-            };
-            ThemePanel.Children.Add(card);
-            _themeCards.Add((card, check, theme));
+            try { AddThemeCard(theme); }
+            catch (Exception ex) { Log.Write($"theme card '{theme.Name}' failed: {ex}"); }
         }
         RefreshThemeCards();
+    }
+
+    private void AddThemeCard(Theme theme)
+    {
+        // mini capsule with the theme's real gradient and glow
+        var bg = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
+        bg.GradientStops.Add(new GradientStop(theme.GradTop, 0));
+        bg.GradientStops.Add(new GradientStop(theme.GradMid, 0.5));
+        bg.GradientStops.Add(new GradientStop(theme.GradEnd, 1));
+        var mini = new Border
+        {
+            Width = 64, Height = 20, CornerRadius = new CornerRadius(10),
+            Background = bg,
+            BorderBrush = new SolidColorBrush(theme.Border.A > 0 ? theme.Border : (theme.IsLight ? Color.FromArgb(40, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255))),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 10, 0, 6),
+            Effect = new DropShadowEffect
+            {
+                BlurRadius = theme.HasGlow ? 10 : 6, ShadowDepth = theme.HasGlow ? 0 : 1,
+                Color = theme.HasGlow ? Color.FromRgb(theme.Glow.R, theme.Glow.G, theme.Glow.B) : Colors.Black,
+                Opacity = theme.HasGlow ? Math.Min(1, theme.Glow.A / 255.0 * 2) : 0.3,
+            },
+        };
+        var inner = new Grid();
+        inner.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(theme.Accent), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(6, 0, 0, 0) });
+        var bars = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 7, 0) };
+        foreach (var h in new[] { 5, 9, 6 })
+            bars.Children.Add(new Rectangle { Width = 2, Height = h, RadiusX = 1, RadiusY = 1, Margin = new Thickness(1, 0, 1, 0), Fill = new SolidColorBrush(theme.Equalizer), VerticalAlignment = VerticalAlignment.Center });
+        inner.Children.Add(bars);
+        mini.Child = inner;
+
+        var label = new TextBlock { Text = theme.Name, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
+        label.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
+
+        var check = new Border
+        {
+            Width = 16, Height = 16, CornerRadius = new CornerRadius(8),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 4, 4, 0), Visibility = Visibility.Collapsed,
+        };
+        check.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
+        var tick = new TextBlock { Text = "", FontFamily = (FontFamily)FindResource("Icons"), FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        tick.SetResourceReference(TextBlock.ForegroundProperty, "AccentFgBrush");
+        check.Child = tick;
+
+        var column = new StackPanel();
+        column.Children.Add(mini);
+        column.Children.Add(label);
+        var content = new Grid();
+        content.Children.Add(column);
+        content.Children.Add(check);
+
+        var card = new Button { Content = content, Style = (Style)FindResource("ThemeCard"), Tag = theme.Name };
+        card.Click += (_, _) =>
+        {
+            if (_settings.Theme == theme.Name) return;
+            _settings.Theme = theme.Name;
+            _settings.Save();
+            ApplyTheme(theme, animate: true);
+        };
+        ThemePanel.Children.Add(card);
+        _themeCards.Add((card, check, theme));
     }
 
     /// <summary>Selection follows Settings.Theme only.</summary>
@@ -984,14 +648,39 @@ public partial class IslandWindow : Window
         }
     }
 
-    private void SetToggle(Border track, Ellipse knob, bool on, bool animate)
+    // ================= Settings: toggles and chips
+
+    private void RefreshToggles()
+    {
+        SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: !_loading);
+        SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate: !_loading);
+        SetToggle(NextEventToggle, NextEventKnob, _settings.ShowNextEvent, animate: !_loading);
+    }
+
+    private static void SetToggle(Border track, Ellipse knob, bool on, bool animate)
     {
         var dur = TimeSpan.FromMilliseconds(animate ? 160 : 0);
         var tt = (TranslateTransform)knob.RenderTransform;
         tt.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(on ? 18 : 0, dur) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } });
         track.SetResourceReference(Border.BackgroundProperty, on ? "AccentBrush" : "ToggleOffBrush");
-        knob.SetResourceReference(Shape.FillProperty, on ? "AccentFgBrush" : "FgBrush");
-        if (!on) knob.Fill = Brushes.White;
+        if (on) knob.SetResourceReference(Shape.FillProperty, "AccentFgBrush");
+        else knob.Fill = Brushes.White;
+    }
+
+    /// <summary>Selected chip = accent plate, others = surface plate.</summary>
+    private static void SetChip(Button chip, bool selected)
+    {
+        chip.SetResourceReference(BackgroundProperty, selected ? "AccentBrush" : "SurfaceBrush");
+        chip.SetResourceReference(ForegroundProperty, selected ? "AccentFgBrush" : "FgBrush");
+    }
+
+    private void RefreshChips()
+    {
+        SetChip(UnitC, !_settings.Fahrenheit);
+        SetChip(UnitF, _settings.Fahrenheit);
+        SetChip(WeekMon, _settings.WeekStartsMonday);
+        SetChip(WeekSun, !_settings.WeekStartsMonday);
+        RefreshFormChips();
     }
 
     private void LyricsRow_Click(object sender, RoutedEventArgs e)
@@ -999,7 +688,7 @@ public partial class IslandWindow : Window
         if (_loading) return;
         _settings.ShowLyrics = !_settings.ShowLyrics;
         _settings.Save();
-        SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: true);
+        RefreshToggles();
         if (_settings.ShowLyrics && _track != null) UpdateLyricsSource(_track);
         UpdateStrip();
     }
@@ -1007,15 +696,36 @@ public partial class IslandWindow : Window
     private void AutoStartRow_Click(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
-        bool on = !AutoStart.IsEnabled;
-        AutoStart.Set(on);
-        SetToggle(AutoStartToggle, AutoStartKnob, AutoStart.IsEnabled, animate: true);
+        AutoStart.Set(!AutoStart.IsEnabled);
+        RefreshToggles();
+    }
+
+    private void NextEventRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.ShowNextEvent = !_settings.ShowNextEvent;
+        _settings.Save();
+        RefreshToggles();
+        UpdateHomeEvent();
+    }
+
+    private void WeekMon_Click(object sender, RoutedEventArgs e) => SetWeekStart(true);
+    private void WeekSun_Click(object sender, RoutedEventArgs e) => SetWeekStart(false);
+
+    private void SetWeekStart(bool monday)
+    {
+        if (_settings.WeekStartsMonday == monday) return;
+        _settings.WeekStartsMonday = monday;
+        _settings.Save();
+        RefreshChips();
+        RenderCalendar(animateDir: 0);
     }
 
     private void Quit_Click(object sender, RoutedEventArgs e)
     {
-        // shrink to a point, then exit
-        _uiTimer.Stop(); _pollTimer.Stop(); _eqTimer.Stop();
+        _uiTimer.Stop();
+        StopMedia();
+        DisableKeyboard();
         var shrink = new DoubleAnimation(0, TimeSpan.FromMilliseconds(200)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
         shrink.Completed += (_, _) => Application.Current.Shutdown();
         LyricsStrip.Visibility = Visibility.Collapsed;
