@@ -28,17 +28,24 @@ public static class LyricsService
     {
         bool altered = IsAlteredVersion(title);
         string clean = CleanTitle(title);
+        Log.Write($"lyrics: search \"{title}\" / \"{artist}\" / {duration:0}s");
 
         // 1) exact title + artist, plus free-text search
         var exact = await SearchAsync(("track_name", title), ("artist_name", artist));
         var free = await SearchAsync(("q", (clean.Length > 0 ? clean : title) + " " + artist));
-        var found = Pick(exact.Concat(free).ToList(), title, artist, duration, allowScale: false);
-        if (found != null || clean.Length == 0) return found;
+        var found = Pick(exact.Concat(free).ToList(), title, artist, duration, allowScale: false, "exact");
+        if (found != null || clean.Length == 0)
+        {
+            if (found == null) Log.Write("lyrics: not found");
+            return found;
+        }
 
         // 2) cleaned title (no "sped up", "feat."), with and without artist
         var byClean = await SearchAsync(("track_name", clean), ("artist_name", artist));
         var onlyTitle = await SearchAsync(("track_name", clean));
-        return Pick(byClean.Concat(onlyTitle).ToList(), title, artist, duration, altered);
+        found = Pick(byClean.Concat(onlyTitle).ToList(), title, artist, duration, altered, "clean");
+        if (found == null) Log.Write("lyrics: not found");
+        return found;
     }
 
     private static async Task<List<JsonElement>> SearchAsync(params (string Key, string Value)[] query)
