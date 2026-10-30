@@ -99,7 +99,7 @@ public partial class IslandWindow
             else
             {
                 // old grid leaves in the direction of travel, new one comes from the other side (220 ms)
-                var dur = TimeSpan.FromMilliseconds(220);
+                var dur = Dur(220);
                 var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
                 var oldShift = new TranslateTransform();
                 old.RenderTransform = oldShift;
@@ -338,7 +338,7 @@ public partial class IslandWindow
 
     private void SwapDayAndForm(bool showForm, bool animate)
     {
-        var dur = TimeSpan.FromMilliseconds(animate ? 220 : 0);
+        var dur = Dur(animate ? 220 : 0);
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         FrameworkElement incoming = showForm ? EventForm : DayListView;
         FrameworkElement outgoing = showForm ? DayListView : EventForm;
@@ -495,7 +495,7 @@ public partial class IslandWindow
         var a = new DoubleAnimationUsingKeyFrames();
         int i = 0;
         foreach (var x in new[] { -6.0, 6, -4, 4, -2, 0 })
-            a.KeyFrames.Add(new LinearDoubleKeyFrame(x, TimeSpan.FromMilliseconds(40 * ++i)));
+            a.KeyFrames.Add(new LinearDoubleKeyFrame(x, Dur(40 * ++i)));
         tt.BeginAnimation(TranslateTransform.XProperty, a);
     }
 
@@ -542,6 +542,7 @@ public partial class IslandWindow
             if (now < at || now > at.AddSeconds(90)) continue;
             if (!_fired.Add(ReminderKey(ev))) continue;
             Log.Write($"reminder: {ev.Title} at {ev.Start:HH:mm}");
+            if (!_settings.Reminders) continue;
             if (_expanded) { _pendingReminder = ev; _pendingAt = now; }
             else ShowActivity(ev);
         }
@@ -567,7 +568,7 @@ public partial class IslandWindow
     private void ShowActivity(CalendarEvent ev)
     {
         _activity = ev;
-        _activityUntil = DateTime.Now.AddSeconds(8);
+        _activityUntil = DateTime.Now.AddSeconds(_settings.ReminderSeconds);
         ActivityDot.Fill = new SolidColorBrush(Hex(ev.Color));
         ActivityTitle.SetForegroundResource("FgBrush");
         ActivityTitle.Text = ev.Title;
@@ -576,8 +577,8 @@ public partial class IslandWindow
         UpdateStrip();
         // a short pulse so the change is noticed
         var pulse = new DoubleAnimationUsingKeyFrames();
-        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1.04, TimeSpan.FromMilliseconds(160), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1, TimeSpan.FromMilliseconds(420), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.4 }));
+        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1.04, Dur(160), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1, Dur(420), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.4 }));
         RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, pulse);
         RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, pulse);
     }

@@ -11,8 +11,15 @@
     <AssemblyName>DynamicMochi</AssemblyName>
     <RootNamespace>DynamicMochi</RootNamespace>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
+    <ApplicationIcon>Assets\mochi.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <Content Include="Assets\mochi.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\Fonts\LICENSES\*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
