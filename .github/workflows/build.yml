@@ -5,6 +5,9 @@ on:
     branches: [ "main", "phase-*", "fix/**" ]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -21,3 +24,14 @@ jobs:
         with:
           name: DynamicMochi-win-x64
           path: publish
+      - name: Pre-release
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $branch = "${{ github.ref_name }}" -replace '[^A-Za-z0-9.-]', '-'
+          $tag = "build-$branch"
+          Compress-Archive -Path publish\* -DestinationPath DynamicMochi-win-x64.zip
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          gh release create $tag DynamicMochi-win-x64.zip --prerelease --target "${{ github.sha }}" --title "Latest build ($branch)" --notes "Automatic build of ${{ github.sha }}. Requires .NET 8 Desktop Runtime."
