@@ -116,4 +116,12 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - 16 Wind units m/s, km/h, mph, kn requested from Open-Meteo directly; now: speed, arrow to where it blows, compass point, gusts, Beaufort name; per hour under the temperature (accent from 8 m/s); daily max in the 7-day list.
   - 17 Shape: Island / Notch. Notch is glued to the top edge, only the bottom corners are round, 8 px reverse corners on top, vertical gradient that is black at the edge; the top gap is disabled with an explanation.
   - Not verified on hardware (CI build only). Needs the v1.4 checklist on Windows 11, especially: two YouTube tabs + YouTube Music, fast track switching, notch at 125/150 %, English on every tab.
+- **2026-10-31 (v1.6, per `docs/SPEC-v1.6.md`, by Etan):**
+  - Glow strength: Settings → Appearance, 0–100 % (50 % = the theme's own glow, 0 = plain shadow); blur grows with it.
+  - Themes: OLED is now total black (no artwork blob). New **Gradient** theme: pitch black on top, a restrained colour at the bottom — the artwork colour (about a third of it) or a fixed purple (Settings → Appearance → Gradient colour); the glow follows the same colour. New **Purple** coloured theme. 8 themes, cards 4 per row in the island and the settings window.
+  - Lyrics toggle removed from the island quick settings; all lyrics options live in Settings → Music.
+  - New **Power** tab: sleep, lock, hibernate, restart, sign out, shut down. Restart / sign out / shut down need a second click within 5 s. Sleep and hibernate via `SetSuspendState` P/Invoke. Tab can be hidden (Settings → General → Home).
+  - Home bottom bar (44 px, clock and player keep their size, Home height 230 → 262 only when the bar is shown): weather (icon 22, temperature, place, wind) and quick buttons (screenshot, do not disturb, lock, power tab). Do not disturb is a real setting now and silences Telegram / Discord / screenshot notices.
+  - Not done: note and stats blocks from §5 (left for later).
+  - Not verified on hardware (CI build only).
 
