@@ -136,3 +136,7 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Autostart fixed. Root cause: the Run value kept the exe path from the moment the toggle was switched on; every new build unpacked into another folder left Windows starting an old or deleted exe, while the toggle still looked "on" (it only checked that some value existed).
   - Now: "Start with Windows" is a real setting, on by default (old settings files get it too). On every launch the Run value is pointed at the running exe. The toggle shows "on" only when the value matches this exe and the app is not switched off in Task Manager → Startup apps; turning it on clears that "off" mark. The settings row says so when Task Manager has it off.
   - Not verified on hardware (CI build only). Check: launch the new exe once, reboot, the island should appear after sign-in; then switch it off in Task Manager and see the settings row.
+- **2026-11-01 (v1.6.3, by Etan):**
+  - "Hide in full-screen apps" never worked: `UpdateFullScreen()` was added in v1.3 but nothing called it. Now it runs every 200 ms from the UI timer, so the island slides up over exclusive and borderless full-screen games (tester's case: Dota 2 borderless), full-screen video and slides, and comes back on alt-tab.
+  - A maximized window with a title bar is not treated as full screen (with an auto-hiding taskbar it also covers the whole monitor).
+  - Not verified on hardware (CI build only). Check: Dota 2 borderless, YouTube F11, a maximized browser with auto-hide taskbar (island must stay).

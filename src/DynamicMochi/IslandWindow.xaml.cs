@@ -47,6 +47,7 @@ public partial class IslandWindow : Window
     private bool _loading = true;
     private string _page = "home";
     private int _lastSecond = -1;
+    private int _fullScreenTick;
     private WeatherFx.Fx? _previewFx;
 
     // keyboard: the window never takes focus, except while the user types into a field
@@ -819,6 +820,7 @@ public partial class IslandWindow : Window
         var local = DateTime.Now;
         UpdateClocks(force: false);
         MusicTick(local);
+        if (++_fullScreenTick % 4 == 0) UpdateFullScreen();   // every 200 ms; was written in v1.3 but never called
 
         if (local.Second != _lastSecond)
         {

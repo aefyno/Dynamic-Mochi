@@ -30,6 +30,8 @@ public static class Screens
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hwnd, StringBuilder name, int max);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("shcore.dll")] private static extern int GetDpiForMonitor(IntPtr hMonitor, int type, out uint dpiX, out uint dpiY);
 
     private const uint SWP_NOSIZE = 0x0001, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010;
@@ -67,7 +69,7 @@ public static class Screens
         return m;
     }
 
-    /// <summary>True when the foreground window covers the whole monitor the island is on (games, video, slides).</summary>
+    /// <summary>True when the foreground window covers the whole monitor the island is on: exclusive and borderless games, video, slides.</summary>
     public static bool FullScreenAppOn(IntPtr island)
     {
         var fg = Native.GetForegroundWindow();
@@ -81,6 +83,9 @@ public static class Screens
         var info = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>() };
         if (!GetMonitorInfo(mon, ref info) || !GetWindowRect(fg, out var r)) return false;
         var m = info.rcMonitor;
-        return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
+        if (!(r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom)) return false;
+        // A maximized window with a title bar also covers the monitor when the taskbar auto-hides; that is not full screen.
+        const int GWL_STYLE = -16, WS_CAPTION = 0x00C00000;
+        return !(IsZoomed(fg) && (GetWindowLong(fg, GWL_STYLE) & WS_CAPTION) == WS_CAPTION);
     }
 }
