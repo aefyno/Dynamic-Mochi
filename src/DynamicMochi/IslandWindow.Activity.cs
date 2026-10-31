@@ -45,7 +45,7 @@ public partial class IslandWindow
         }
         _notice = n;
         n.Until = DateTime.Now + n.Duration;
-        Log.Write($"notice: {n.Kind} \\"{n.Title}\\"");
+        Log.Write($"notice: {n.Kind} \"{n.Title}\"");
 
         ActivityDot.Visibility = n.Dot != null && n.Picture == null && n.Glyph == null ? Visibility.Visible : Visibility.Collapsed;
         if (n.Dot is Color dot) ActivityDot.Fill = new SolidColorBrush(dot);
