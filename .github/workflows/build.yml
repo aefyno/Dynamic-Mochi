@@ -3,6 +3,7 @@ name: build
 on:
   push:
     branches: [ "main", "phase-*", "fix/**" ]
+    tags: [ "v*" ]
   pull_request:
 
 permissions:
@@ -25,7 +26,7 @@ jobs:
           name: DynamicMochi-win-x64
           path: publish
       - name: Pre-release
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,3 +36,20 @@ jobs:
           Compress-Archive -Path publish\* -DestinationPath DynamicMochi-win-x64.zip
           gh release delete $tag --yes --cleanup-tag 2>$null
           gh release create $tag DynamicMochi-win-x64.zip --prerelease --target "${{ github.sha }}" --title "Latest build ($branch)" --notes "Automatic build of ${{ github.sha }}. Single self-contained exe, no .NET install needed."
+      # v* tag: a real numbered release (the app's updater reads releases/latest)
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Copy-Item publish\DynamicMochi.exe DynamicMochi.exe
+          Compress-Archive -Path publish\* -DestinationPath "DynamicMochi-$tag-win-x64.zip"
+          $hash = (Get-FileHash DynamicMochi.exe -Algorithm SHA256).Hash.ToLower()
+          $size = (Get-Item DynamicMochi.exe).Length
+          $notesFile = "docs/release-notes/$tag.md"
+          $notes = if (Test-Path $notesFile) { Get-Content $notesFile -Raw -Encoding utf8 } else { "Dynamic Mochi $tag" }
+          $notes = $notes + "`n`n---`nDynamicMochi.exe: SHA-256 ``$hash``, $size bytes"
+          Set-Content -Path notes.md -Value $notes -Encoding utf8
+          gh release create $tag DynamicMochi.exe "DynamicMochi-$tag-win-x64.zip" --title "Dynamic Mochi $($tag.TrimStart('v'))" --notes-file notes.md --latest --target "${{ github.sha }}"

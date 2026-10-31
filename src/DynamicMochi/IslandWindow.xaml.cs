@@ -687,7 +687,7 @@ public partial class IslandWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
         });
         foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabSettings, "settings") })
-            tab.SetResourceReference(ForegroundProperty, page == name ? "FgBrush" : "SubBrush");
+            tab.SetResourceReference(ForegroundProperty, page == name ? "AccentBrush" : "SubBrush");
         SmallClock.Visibility = page == "home" ? Visibility.Collapsed : Visibility.Visible;
 
         var incoming = PageElement(page);
