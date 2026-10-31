@@ -316,4 +316,35 @@
   <data name="wmo.95" xml:space="preserve"><value>Thunderstorm</value></data>
   <data name="wmo.96" xml:space="preserve"><value>Thunderstorm with hail</value></data>
   <data name="wmo.99" xml:space="preserve"><value>Thunderstorm with hail</value></data>
+  <data name="tab.power" xml:space="preserve"><value>Power</value></data>
+  <data name="power.sleep" xml:space="preserve"><value>Sleep</value></data>
+  <data name="power.lock" xml:space="preserve"><value>Lock</value></data>
+  <data name="power.hibernate" xml:space="preserve"><value>Hibernate</value></data>
+  <data name="power.restart" xml:space="preserve"><value>Restart</value></data>
+  <data name="power.signout" xml:space="preserve"><value>Sign out</value></data>
+  <data name="power.shutdown" xml:space="preserve"><value>Shut down</value></data>
+  <data name="power.confirm" xml:space="preserve"><value>Sure? Click again</value></data>
+  <data name="power.nohibernate" xml:space="preserve"><value>Hibernation is turned off in Windows</value></data>
+  <data name="quick.screenshot" xml:space="preserve"><value>Screenshot</value></data>
+  <data name="quick.dnd" xml:space="preserve"><value>Do not disturb</value></data>
+  <data name="theme.gradient" xml:space="preserve"><value>Gradient</value></data>
+  <data name="theme.purple" xml:space="preserve"><value>Purple</value></data>
+  <data name="set.glow" xml:space="preserve"><value>Glow and brightness</value></data>
+  <data name="set.glow.d" xml:space="preserve"><value>The glow around the capsule and how bright the colour gradient inside it is. 0 = no glow and a muted colour.</value></data>
+  <data name="set.glow.na" xml:space="preserve"><value>This theme has no glow.</value></data>
+  <data name="set.gradsrc" xml:space="preserve"><value>Gradient colour</value></data>
+  <data name="set.gradsrc.d" xml:space="preserve"><value>Gradient theme: the song's artwork colour at the bottom, or a constant purple.</value></data>
+  <data name="set.gradsrc.art" xml:space="preserve"><value>Song colour</value></data>
+  <data name="set.gradsrc.fixed" xml:space="preserve"><value>Purple</value></data>
+  <data name="set.gradsrc.na" xml:space="preserve"><value>Only for the Gradient theme.</value></data>
+  <data name="set.tint.na" xml:space="preserve"><value>Not available in this theme: it has its own colour or is fully black.</value></data>
+  <data name="set.home" xml:space="preserve"><value>Home</value></data>
+  <data name="set.home.weather" xml:space="preserve"><value>Weather on Home</value></data>
+  <data name="set.home.weather.d" xml:space="preserve"><value>Icon, temperature, place and wind at the bottom of Home.</value></data>
+  <data name="set.home.quick" xml:space="preserve"><value>Quick buttons</value></data>
+  <data name="set.home.quick.d" xml:space="preserve"><value>Screenshot, do not disturb, lock and power at the bottom of Home.</value></data>
+  <data name="set.powertab" xml:space="preserve"><value>Power tab</value></data>
+  <data name="set.powertab.d" xml:space="preserve"><value>Sleep, lock, hibernate, restart, sign out and shut down right from the island.</value></data>
+  <data name="set.dnd" xml:space="preserve"><value>Do not disturb</value></data>
+  <data name="set.dnd.d" xml:space="preserve"><value>Telegram, Discord and screenshot notices stay quiet. Reminders and the timer still show.</value></data>
 </root>

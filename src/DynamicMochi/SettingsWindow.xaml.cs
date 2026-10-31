@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -527,6 +528,17 @@ public partial class SettingsWindow : Window
                     new(Loc.T("set.fullscreen"), Loc.T("set.fullscreen.d"), () =>
                         MakeToggle(S.HideInFullscreen, v => S.HideInFullscreen = v)),
                 }),
+                new(Loc.T("set.home"), new List<Row>
+                {
+                    new(Loc.T("set.home.weather"), Loc.T("set.home.weather.d"), () =>
+                        MakeToggle(S.HomeWeatherBlock, v => S.HomeWeatherBlock = v)),
+                    new(Loc.T("set.home.quick"), Loc.T("set.home.quick.d"), () =>
+                        MakeToggle(S.HomeQuickButtons, v => S.HomeQuickButtons = v)),
+                    new(Loc.T("set.powertab"), Loc.T("set.powertab.d"), () =>
+                        MakeToggle(S.ShowPowerTab, v => S.ShowPowerTab = v)),
+                    new(Loc.T("set.dnd"), Loc.T("set.dnd.d"), () =>
+                        MakeToggle(S.DoNotDisturb, v => S.DoNotDisturb = v)),
+                }),
                 new(Loc.T("set.system"), new List<Row>
                 {
                     new(Loc.T("set.autostart"), Loc.T("set.autostart.d"), () =>
@@ -562,9 +574,15 @@ public partial class SettingsWindow : Window
                 }),
                 new(null, new List<Row>
                 {
+                    new(Loc.T("set.glow"), Loc.T("set.glow.d"), () =>
+                        MakeSlider(0, 100, S.GlowStrength * 100, 5, v => $"{v:0} %", v => S.GlowStrength = v / 100, layoutOnly: false),
+                        Disabled: () => !Themes.Find(S.Theme).IsGradient ? Loc.T("set.glow.na") : null),
+                    new(Loc.T("set.gradsrc"), Loc.T("set.gradsrc.d"), () =>
+                        MakeSegmented(L("set.gradsrc.art", "set.gradsrc.fixed"), S.GradientFromArt ? 0 : 1, i => S.GradientFromArt = i == 0),
+                        Disabled: () => !Themes.Find(S.Theme).FollowsArt ? Loc.T("set.gradsrc.na") : null),
                     new(Loc.T("set.tint"), Loc.T("set.tint.d"), () =>
                         MakeToggle(S.ArtworkTint, v => S.ArtworkTint = v),
-                        Disabled: () => theme.IsGradient ? Loc.T("set.tint.colored") : null),
+                        Disabled: () => !Themes.Find(S.Theme).ArtworkTint ? Loc.T("set.tint.na") : null),
                     new(Loc.T("set.anim"), Loc.T("set.anim.d"), () =>
                         MakeSegmented(L("set.anim.normal", "set.anim.fast", "set.anim.off"),
                             S.AnimationSpeed >= 1 ? 0 : S.AnimationSpeed > 0 ? 1 : 2, i => S.AnimationSpeed = i switch { 0 => 1, 1 => 0.6, _ => 0 }, rerender: true)),
@@ -755,12 +773,13 @@ public partial class SettingsWindow : Window
 
     private FrameworkElement ThemeGrid()
     {
-        var panel = new WrapPanel();
+        // v1.6: 8 themes, 4 per row
+        var panel = new UniformGrid { Columns = 4 };
         var cards = new List<(Button, Border, Theme)>();
         foreach (var theme in Themes.All)
         {
             var t = theme;
-            var (card, check) = ThemeCards.Create(theme, width: 180, height: 96, miniWidth: 96, () =>
+            var (card, check) = ThemeCards.Create(theme, width: double.NaN, height: 96, miniWidth: 88, () =>
             {
                 S.Theme = t.Name;
                 Changed();

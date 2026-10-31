@@ -170,16 +170,35 @@ public partial class App : Application
         var menu = t.IsLight ? Colors.White : t.IsGradient ? Blend(t.GradMid, Color.FromRgb(0x1C, 0x1C, 0x1E), 0.55) : Color.FromRgb(0x1C, 0x1C, 0x1E);
         SetBrush("MenuBrush", menu, animate);
         // settings window: the same gradient as the island in coloured themes (colour flowing into black)
-        if (t.IsGradient)
-        {
-            var g = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
-            g.GradientStops.Add(new GradientStop(t.GradTop, 0));
-            g.GradientStops.Add(new GradientStop(t.GradMid, 0.55));
-            g.GradientStops.Add(new GradientStop(Colors.Black, 1));
-            g.Freeze();
-            Current.Resources["WindowBrush"] = g;
-        }
+        if (t.IsGradient) SetWindowGradient(t);
         else SetBrush("WindowBrush", t.IsLight ? Color.FromRgb(0xF3, 0xF3, 0xF5) : Color.FromRgb(0x10, 0x10, 0x12), animate);
+    }
+
+    private static Color? _gradientBottom;
+
+    /// <summary>
+    /// v1.6.1: the island tells us the Gradient theme's real bottom colour (the song colour), so the settings
+    /// window matches it instead of the fixed purple.
+    /// </summary>
+    public static void SetGradientBottom(Color c)
+    {
+        if (_gradientBottom == c) return;
+        _gradientBottom = c;
+        var t = Themes.Find(Settings.Theme);
+        if (t.FollowsArt) SetWindowGradient(t);
+    }
+
+    private static void SetWindowGradient(Theme t)
+    {
+        double k = Settings.GlowStrength;
+        var g = t.Vertical
+            ? new LinearGradientBrush { StartPoint = new System.Windows.Point(0.5, 0), EndPoint = new System.Windows.Point(0.5, 1) }
+            : new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
+        g.GradientStops.Add(new GradientStop(Themes.Boost(t.GradTop, k), 0));
+        g.GradientStops.Add(new GradientStop(Themes.Boost(t.GradMid, k), t.Vertical ? 0.45 : 0.55));
+        g.GradientStops.Add(new GradientStop(t.Vertical ? (t.FollowsArt && _gradientBottom is Color b ? b : Themes.Boost(t.GradEnd, k)) : Colors.Black, 1));
+        g.Freeze();
+        Current.Resources["WindowBrush"] = g;
     }
 
     private static void SetBrush(string key, Color to, bool animate)

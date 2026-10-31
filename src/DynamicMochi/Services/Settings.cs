@@ -28,7 +28,7 @@ public sealed class Settings
 
     /// <summary>Format version: 0 = up to v1.3, 4 = v1.4 (new defaults applied once on upgrade).</summary>
     public int SettingsVersion { get; set; }   // missing in old files = 0
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 6;
 
     // general
     public double Scale { get; set; } = 1.0;            // 0.8 … 1.3
@@ -40,6 +40,10 @@ public sealed class Settings
     public bool Clock24 { get; set; } = true;
     public bool ClockWithMusic { get; set; } = true;
     public bool HideInFullscreen { get; set; } = true;
+    public bool ShowPowerTab { get; set; } = true;       // v1.6: sleep / lock / shut down tab
+    public bool HomeWeatherBlock { get; set; } = true;   // v1.6: Home bottom bar
+    public bool HomeQuickButtons { get; set; } = true;
+    public bool DoNotDisturb { get; set; }
     public string Language { get; set; } = "system";    // system / ru / en
     public bool HotkeyEnabled { get; set; } = true;
     public int HotkeyModifiers { get; set; } = 0x0008 | 0x0001;   // MOD_WIN | MOD_ALT
@@ -51,6 +55,8 @@ public sealed class Settings
     public string Font { get; set; } = "Manrope";
     public string ClockFont { get; set; } = "Unbounded";
     public bool ArtworkTint { get; set; } = true;
+    public double GlowStrength { get; set; } = 0.5;      // v1.6: 0 … 1, 0.5 = the theme's own glow
+    public bool GradientFromArt { get; set; } = true;    // v1.6: Gradient Black takes the artwork colour (else fixed purple)
     public double AnimationSpeed { get; set; } = 1;     // 1 / 0.6 / 0
 
     // music
@@ -164,6 +170,7 @@ public sealed class Settings
         Scale = Math.Clamp(Scale, 0.8, 1.3);
         TopOffset = Math.Clamp(TopOffset, 0, 24);
         LyricsSize = Math.Clamp(LyricsSize, 12, 18);
+        GlowStrength = double.IsNaN(GlowStrength) ? 0.5 : Math.Clamp(GlowStrength, 0, 1);
         AnimationSpeed = AnimationSpeed <= 0 ? 0 : AnimationSpeed < 0.8 ? 0.6 : 1;
         if (ReminderSeconds is not (5 or 8 or 15)) ReminderSeconds = 8;
         SettingsWindow ??= new();

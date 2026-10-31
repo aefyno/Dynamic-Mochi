@@ -282,5 +282,5 @@ public partial class IslandWindow
     }
 
     /// <summary>"Не беспокоить" arrives in v1.5; until then nothing is muted.</summary>
-    private bool DndActive => false;
+    private bool DndActive => _settings.DoNotDisturb;   // v1.6: quick button on Home
 }
