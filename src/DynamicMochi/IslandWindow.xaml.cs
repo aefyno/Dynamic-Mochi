@@ -217,7 +217,7 @@ public partial class IslandWindow : Window
         {
             var t = Themes.Find(_settings.Theme);
             if (t != _theme) ApplyTheme(t, animate: true);
-            else { ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); RefreshThemeCards(); }
+            else { App.ApplyThemeBrushes(t, animate: false); ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); RefreshThemeCards(); }
         });
         Step("layout", ApplyLayout);
         Step("hotkey", () => RegisterHotkey());
@@ -279,6 +279,9 @@ public partial class IslandWindow : Window
         StripShadow.Opacity = glow ? glowOpacity * 0.8 : 0.4;
     }
 
+    /// <summary>Coloured themes only: brightness follows the glow slider. White / OLED stay as they are.</summary>
+    private Color Boosted(Color c) => _theme.IsLight || !_theme.IsGradient ? c : Themes.Boost(c, _settings.GlowStrength);
+
     /// <summary>
     /// Gradient Black: bottom colour. The artwork colour (kept dark and calm) when it follows the music,
     /// otherwise the theme's fixed purple. <paramref name="bright"/> = for the glow, not darkened.
@@ -286,14 +289,15 @@ public partial class IslandWindow : Window
     private Color BottomColor(bool bright = false)
     {
         var t = _theme;
-        if (!t.FollowsArt) return t.GradEnd;
+        if (!t.FollowsArt) return Boosted(t.GradEnd);
+        Color result;
         if (_settings.GradientFromArt && _track != null && _artColor is Color art)
-        {
-            if (bright) return art;
-            // restrained: about a third of the colour, the rest black (SPEC-v1.6 §2, ≤ 25–35 % saturation feel)
-            return Color.FromRgb((byte)(art.R * 0.34), (byte)(art.G * 0.34), (byte)(art.B * 0.34));
-        }
-        return bright ? t.Glow : t.GradEnd;
+            // restrained: about a third of the colour, the rest black (SPEC-v1.6 §2)
+            result = bright ? art : Boosted(Color.FromRgb((byte)(art.R * 0.34), (byte)(art.G * 0.34), (byte)(art.B * 0.34)));
+        else
+            result = bright ? t.Glow : Boosted(t.GradEnd);
+        if (!bright) App.SetGradientBottom(result);   // the settings window uses the same colour
+        return result;
     }
 
     /// <summary>
@@ -313,10 +317,12 @@ public partial class IslandWindow : Window
         }
         else
         {
-            AnimateColor(BgTopStop, GradientStop.ColorProperty, notch ? Colors.Black : t.GradTop, dur);
-            AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
-            AnimateColor(BgEndStop, GradientStop.ColorProperty, notch ? t.GradTop : t.GradEnd, dur);
+            AnimateColor(BgTopStop, GradientStop.ColorProperty, notch ? Colors.Black : Boosted(t.GradTop), dur);
+            AnimateColor(BgMidStop, GradientStop.ColorProperty, Boosted(t.GradMid), dur);
+            AnimateColor(BgEndStop, GradientStop.ColorProperty, notch ? Boosted(t.GradTop) : Boosted(t.GradEnd), dur);
         }
+        // the shape behind the capsule carries the glow; its colour = the capsule edge, so no dark rim at the corners
+        GlowShape.Background = new SolidColorBrush(t.Vertical || notch ? Colors.Black : Boosted(t.GradTop));
         var ear = new SolidColorBrush(notch ? Colors.Black : t.GradTop);
         ear.Freeze();
         EarLeft.Fill = ear;

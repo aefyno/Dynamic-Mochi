@@ -100,6 +100,18 @@ public static class Themes
 
     public const string GradientName = "Градиент";
 
+    /// <summary>
+    /// v1.6.1: the glow slider also sets how bright the gradient inside the capsule is.
+    /// 0.5 = the theme as designed, 0 = about a third of the colour (still not black), 1 = 1.5× brighter.
+    /// </summary>
+    public static Color Boost(Color c, double strength)
+    {
+        double k = Math.Clamp(strength, 0, 1) / 0.5;               // 0 … 2
+        double f = k <= 1 ? 0.35 + 0.65 * k : 1 + 0.5 * (k - 1);
+        byte Ch(byte v) => (byte)Math.Clamp(Math.Round(v * f), 0, 255);
+        return Color.FromArgb(c.A, Ch(c.R), Ch(c.G), Ch(c.B));
+    }
+
     public const string Default = "OLED";
 
     /// <summary>Unknown or removed theme names (e.g. "Чёрная", "Красно-чёрная") silently fall back to OLED.</summary>

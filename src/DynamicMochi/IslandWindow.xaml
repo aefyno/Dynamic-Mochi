@@ -10,7 +10,8 @@
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="{DynamicResource UiFont}"
         Foreground="{DynamicResource FgBrush}"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale"
+        RenderOptions.BitmapScalingMode="HighQuality">
 
     <Grid x:Name="WindowRoot">
         <StackPanel x:Name="IslandStack" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0">
@@ -41,11 +42,17 @@
                     </Path.RenderTransform>
                 </Path>
 
-                <!-- The only shadow / glow: on a container without a background, so it follows the rounded capsule -->
-                <Border x:Name="GlowHost">
+                <!-- v1.6.1: the glow / shadow lives on its own shape BEHIND the capsule. An effect on the capsule itself
+                     made WPF render all the text into a bitmap and stretch it (blurry digits at 115 % / 2K). -->
+                <Border x:Name="GlowShape" IsHitTestVisible="False" Background="Black"
+                        Width="{Binding ActualWidth, ElementName=Capsule}" Height="{Binding ActualHeight, ElementName=Capsule}"
+                        CornerRadius="{Binding CornerRadius, ElementName=Capsule}"
+                        HorizontalAlignment="Center" VerticalAlignment="Top">
                     <Border.Effect>
                         <DropShadowEffect x:Name="GlowEffect" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.45" Color="Black"/>
                     </Border.Effect>
+                </Border>
+                <Border x:Name="GlowHost">
                     <Border x:Name="Capsule" Width="300" Height="58" CornerRadius="29"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0"
                             MouseEnter="Capsule_MouseEnter" MouseLeave="Capsule_MouseLeave" SizeChanged="Capsule_SizeChanged"
@@ -731,30 +738,39 @@
             </Border>
 
             <!-- ===== Lyric line below the capsule ===== -->
-            <Border x:Name="LyricsStrip" Margin="0,8,0,0" MinHeight="36" MaxWidth="600" Padding="16,8" HorizontalAlignment="Center"
-                    CornerRadius="18" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                        <GradientStop x:Name="StripTopStop" Color="#E0000000" Offset="0"/>
-                        <GradientStop x:Name="StripEndStop" Color="#E0000000" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-                <Border.Effect>
-                    <DropShadowEffect x:Name="StripShadow" BlurRadius="20" ShadowDepth="4" Direction="270" Opacity="0.4" Color="Black"/>
-                </Border.Effect>
-                <Grid>
-                    <TextBlock x:Name="LyricText" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="568"
-                               FontSize="15" FontWeight="SemiBold" LineStackingStrategy="BlockLineHeight" LineHeight="20" MaxHeight="40">
-                        <TextBlock.RenderTransform>
-                            <TranslateTransform x:Name="LyricShift"/>
-                        </TextBlock.RenderTransform>
-                    </TextBlock>
-                    <StackPanel x:Name="Dots" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                        <Ellipse x:Name="Dot0" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
-                        <Ellipse x:Name="Dot1" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
-                        <Ellipse x:Name="Dot2" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
-                    </StackPanel>
+            <!-- v1.6.1: shadow on a separate shape behind the strip, so the lyric text is not rasterised -->
+            <Grid Margin="0,8,0,0" HorizontalAlignment="Center">
+                <Border IsHitTestVisible="False" Background="Black"
+                        Width="{Binding ActualWidth, ElementName=LyricsStrip}" Height="{Binding ActualHeight, ElementName=LyricsStrip}"
+                        CornerRadius="{Binding CornerRadius, ElementName=LyricsStrip}"
+                        Opacity="{Binding Opacity, ElementName=LyricsStrip}" Visibility="{Binding Visibility, ElementName=LyricsStrip}">
+                    <Border.Effect>
+                        <DropShadowEffect x:Name="StripShadow" BlurRadius="20" ShadowDepth="4" Direction="270" Opacity="0.4" Color="Black"/>
+                    </Border.Effect>
+                </Border>
+                <Border x:Name="LyricsStrip" MinHeight="36" MaxWidth="600" Padding="16,8" HorizontalAlignment="Center"
+                        CornerRadius="18" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                            <GradientStop x:Name="StripTopStop" Color="#E0000000" Offset="0"/>
+                            <GradientStop x:Name="StripEndStop" Color="#E0000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <TextBlock x:Name="LyricText" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="568"
+                                   FontSize="15" FontWeight="SemiBold" LineStackingStrategy="BlockLineHeight" LineHeight="20" MaxHeight="40">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform x:Name="LyricShift"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                        <StackPanel x:Name="Dots" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                            <Ellipse x:Name="Dot0" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
+                            <Ellipse x:Name="Dot1" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
+                            <Ellipse x:Name="Dot2" Width="6" Height="6" Margin="3,0" Fill="{DynamicResource SubBrush}"/>
+            
+            </Grid>
+        </StackPanel>
                 </Grid>
             </Border>
         </StackPanel>

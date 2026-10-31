@@ -329,8 +329,8 @@
   <data name="quick.dnd" xml:space="preserve"><value>Не беспокоить</value></data>
   <data name="theme.gradient" xml:space="preserve"><value>Градиент</value></data>
   <data name="theme.purple" xml:space="preserve"><value>Фиолетовая</value></data>
-  <data name="set.glow" xml:space="preserve"><value>Свечение</value></data>
-  <data name="set.glow.d" xml:space="preserve"><value>Насколько сильно капсула светится цветом темы. 0 — без свечения.</value></data>
+  <data name="set.glow" xml:space="preserve"><value>Свечение и яркость</value></data>
+  <data name="set.glow.d" xml:space="preserve"><value>Свечение вокруг капсулы и яркость цветного градиента внутри неё. 0 — без свечения и приглушённый цвет.</value></data>
   <data name="set.glow.na" xml:space="preserve"><value>В этой теме нет свечения.</value></data>
   <data name="set.gradsrc" xml:space="preserve"><value>Цвет градиента</value></data>
   <data name="set.gradsrc.d" xml:space="preserve"><value>Тема «Градиент»: снизу цвет обложки песни или постоянный фиолетовый.</value></data>

@@ -576,7 +576,7 @@ public partial class SettingsWindow : Window
                 {
                     new(Loc.T("set.glow"), Loc.T("set.glow.d"), () =>
                         MakeSlider(0, 100, S.GlowStrength * 100, 5, v => $"{v:0} %", v => S.GlowStrength = v / 100, layoutOnly: false),
-                        Disabled: () => !Themes.Find(S.Theme).HasGlow ? Loc.T("set.glow.na") : null),
+                        Disabled: () => !Themes.Find(S.Theme).IsGradient ? Loc.T("set.glow.na") : null),
                     new(Loc.T("set.gradsrc"), Loc.T("set.gradsrc.d"), () =>
                         MakeSegmented(L("set.gradsrc.art", "set.gradsrc.fixed"), S.GradientFromArt ? 0 : 1, i => S.GradientFromArt = i == 0),
                         Disabled: () => !Themes.Find(S.Theme).FollowsArt ? Loc.T("set.gradsrc.na") : null),
