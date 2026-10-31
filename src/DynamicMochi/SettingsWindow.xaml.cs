@@ -18,21 +18,23 @@ namespace DynamicMochi;
 
 /// <summary>
 /// "Dynamic Mochi — настройки": side menu, search across all settings, rows with a description each.
-/// Every change is applied and saved right away.
+/// Painted in the island theme (gradient, accent). Every change is applied and saved right away.
+/// A setting that does not apply in the current mode is greyed out with the reason (SPEC-v1.4 §14).
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    private sealed record Row(string Title, string Description, Func<FrameworkElement> Control, bool Wide = false);
+    /// <summary>Disabled: returns the reason when the row does not apply right now, otherwise null.</summary>
+    private sealed record Row(string Title, string Description, Func<FrameworkElement> Control, bool Wide = false, Func<string?>? Disabled = null);
     private sealed record Group(string? Title, List<Row> Rows);
     private sealed record Section(string Key, string Title, string Glyph, List<Group> Groups);
 
     private static Settings S => App.Settings;
-    private static readonly CultureInfo Ru = new("ru-RU");
+    private static CultureInfo Ru => Loc.Culture;
 
     private string _section = "general";
     private readonly Dictionary<string, Button> _nav = new();
     private readonly Dictionary<ScrollViewer, DispatcherTimer> _scrollHide = new();
-    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private IntPtr _hwnd;
     private bool _mica;
     private bool _previewUnlocked;
@@ -47,8 +49,8 @@ public partial class SettingsWindow : Window
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); S.Save(); };
 
         var b = S.SettingsWindow;
-        Width = Math.Max(MinWidth, b.Width);
-        Height = Math.Max(MinHeight, b.Height);
+        Width = Math.Max(MinWidth, double.IsNaN(b.Width) ? 900 : b.Width);
+        Height = Math.Max(MinHeight, double.IsNaN(b.Height) ? 640 : b.Height);
         if (!double.IsNaN(b.Left) && !double.IsNaN(b.Top) && OnSomeScreen(b.Left, b.Top))
         {
             WindowStartupLocation = WindowStartupLocation.Manual;
@@ -62,14 +64,30 @@ public partial class SettingsWindow : Window
         }
         catch { }
 
-        VersionLabel.Text = "Dynamic Mochi " + (typeof(App).Assembly.GetName().Version?.ToString(3) ?? "");
         SourceInitialized += (_, _) => { _hwnd = new WindowInteropHelper(this).Handle; ApplyBackdrop(); };
         Closing += OnClosing;
         PreviewKeyDown += OnPreviewKeyDown;
+        ContentScroll.PreviewMouseWheel += (_, e) => ThinScrollBars.Wheel(ContentScroll, e);
         _placeDebounce.Tick += async (_, _) => { _placeDebounce.Stop(); await SearchPlacesAsync(); };
+        Loc.Changed += OnLanguage;
+        Closed += (_, _) => Loc.Changed -= OnLanguage;
 
+        ApplyTexts();
         BuildNav();
         ShowSection("general");
+    }
+
+    private void OnLanguage()
+    {
+        ApplyTexts();
+        BuildNav();
+        ShowSection(_section);
+    }
+
+    private void ApplyTexts()
+    {
+        Title = Loc.T("set.window");
+        VersionLabel.Text = "Dynamic Mochi " + App.Version;
     }
 
     private static bool OnSomeScreen(double left, double top) =>
@@ -86,24 +104,33 @@ public partial class SettingsWindow : Window
             S.SettingsWindow.Width = Width;
             S.SettingsWindow.Height = Height;
         }
+        _saveTimer.Stop();
         S.Save();
         App.Island?.PreviewWeather(null);
     }
 
-    /// <summary>Mica backdrop and a title bar that follows the island theme (falls back to a solid colour).</summary>
+    /// <summary>
+    /// The window wears the island theme: coloured themes get their gradient (colour flowing into black),
+    /// OLED and White keep Mica when available (a gradient over Mica looks muddy).
+    /// </summary>
     private void ApplyBackdrop()
     {
-        if (_hwnd == IntPtr.Zero) return;
         var theme = Themes.Find(S.Theme);
+        if (_hwnd == IntPtr.Zero) return;
         try
         {
-            _mica = Native.ApplyBackdrop(_hwnd, dark: !theme.IsLight);
+            _mica = !theme.IsGradient && Native.ApplyBackdrop(_hwnd, dark: !theme.IsLight);
+            if (theme.IsGradient) Native.ApplyBackdrop(_hwnd, dark: true, mica: false);
             if (_mica)
             {
                 Background = Brushes.Transparent;
                 if (HwndSource.FromHwnd(_hwnd)?.CompositionTarget is { } target) target.BackgroundColor = Colors.Transparent;
             }
-            else SetResourceReference(BackgroundProperty, "WindowBrush");
+            else
+            {
+                if (HwndSource.FromHwnd(_hwnd)?.CompositionTarget is { } target) target.BackgroundColor = Colors.Black;
+                SetResourceReference(BackgroundProperty, "WindowBrush");
+            }
         }
         catch (Exception ex)
         {
@@ -112,12 +139,12 @@ public partial class SettingsWindow : Window
         }
     }
 
-    /// <summary>Apply to the island and save (debounced while a slider is dragged).</summary>
-    private void Changed(bool everything = true)
+    /// <summary>Apply to the island and save now (sliders: a short debounce while dragging).</summary>
+    private void Changed(bool everything = true, bool debounce = false)
     {
         if (everything) App.Island?.ApplySettings();
-        _saveTimer.Stop();
-        _saveTimer.Start();
+        if (debounce) { _saveTimer.Stop(); _saveTimer.Start(); }
+        else { _saveTimer.Stop(); S.Save(); }
     }
 
     /// <summary>The island changed something (theme card, lyrics toggle): redraw.</summary>
@@ -125,45 +152,72 @@ public partial class SettingsWindow : Window
     {
         ApplyBackdrop();
         Render();
+        HighlightNav();
     }
 
-    // ================= Navigation
+    // ================= Navigation: icons in accent-coloured circles
 
     private static readonly (string Key, string Title, string Glyph)[] NavItems =
     {
-        ("general", "Общее", ""),
-        ("appearance", "Внешний вид", ""),
-        ("music", "Музыка", ""),
-        ("weather", "Погода", ""),
-        ("calendar", "Календарь", ""),
-        ("about", "О программе", ""),
+        ("general", "set.general", ""),
+        ("appearance", "set.appearance", ""),
+        ("music", "set.music", ""),
+        ("weather", "set.weather", ""),
+        ("calendar", "set.calendar", ""),
+        ("notifications", "set.notifications", ""),
+        ("about", "set.about", ""),
     };
+
+    private readonly Dictionary<string, (Border Circle, TextBlock Icon)> _navIcons = new();
 
     private void BuildNav()
     {
         NavPanel.Children.Clear();
         _nav.Clear();
+        _navIcons.Clear();
         foreach (var (key, title, glyph) in NavItems)
         {
-            var grid = new Grid();
-            var bar = new Border { Width = 3, Height = 16, CornerRadius = new CornerRadius(1.5), HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Hidden };
-            bar.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
-            grid.Children.Add(bar);
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 0, 0, 0) };
-            var icon = new TextBlock { Text = glyph, FontSize = 15, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0) };
+            var circle = new Border { Width = 28, Height = 28, CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 0, 12, 0) };
+            var icon = new TextBlock { Text = glyph, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             icon.SetResourceReference(TextBlock.FontFamilyProperty, "Icons");
-            icon.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
-            var text = new TextBlock { Text = title, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+            circle.Child = icon;
+            var text = new TextBlock { Text = Loc.T(title), FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
             text.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
-            row.Children.Add(icon);
+            row.Children.Add(circle);
             row.Children.Add(text);
-            grid.Children.Add(row);
-            var b = new Button { Content = grid, Tag = bar };
+            var b = new Button { Content = row, Height = 42 };
             b.SetResourceReference(StyleProperty, "NavItem");
             string k = key;
             b.Click += (_, _) => { if (SearchBox.Text.Length > 0) SearchBox.Text = ""; ShowSection(k); };
             NavPanel.Children.Add(b);
             _nav[key] = b;
+            _navIcons[key] = (circle, icon);
+        }
+        SearchBox.Tag = Loc.T("set.search");
+        SavedHint.Text = Loc.T("set.saved");
+        QuitText.Text = Loc.T("set.quit");
+    }
+
+    private void HighlightNav()
+    {
+        foreach (var (k, b) in _nav)
+        {
+            bool on = k == _section && SearchBox.Text.Trim().Length == 0;
+            if (on) b.SetResourceReference(BackgroundProperty, "SurfaceBrush");
+            else b.Background = Brushes.Transparent;
+            var (circle, icon) = _navIcons[k];
+            if (on)
+            {
+                circle.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
+                icon.SetResourceReference(TextBlock.ForegroundProperty, "AccentFgBrush");
+            }
+            else
+            {
+                var accent = Themes.Find(S.Theme).Accent;
+                circle.Background = new SolidColorBrush(Color.FromArgb(46, accent.R, accent.G, accent.B));
+                icon.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+            }
         }
     }
 
@@ -171,13 +225,7 @@ public partial class SettingsWindow : Window
     {
         if (NavItems.All(n => n.Key != key)) key = "general";
         _section = key;
-        foreach (var (k, b) in _nav)
-        {
-            bool on = k == key && SearchBox.Text.Trim().Length == 0;
-            if (on) b.SetResourceReference(BackgroundProperty, "SurfaceBrush");
-            else b.Background = Brushes.Transparent;
-            if (b.Tag is Border bar) bar.Visibility = on ? Visibility.Visible : Visibility.Hidden;
-        }
+        HighlightNav();
         Render();
         ContentScroll.ScrollToTop();
     }
@@ -219,7 +267,7 @@ public partial class SettingsWindow : Window
         }
         if (!any)
         {
-            var none = new TextBlock { Text = "Ничего не нашлось", FontSize = 13, Margin = new Thickness(4, 16, 0, 0) };
+            var none = new TextBlock { Text = Loc.T("set.nothing"), FontSize = 13, Margin = new Thickness(4, 16, 0, 0) };
             none.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
             ContentPanel.Children.Add(none);
         }
@@ -227,8 +275,7 @@ public partial class SettingsWindow : Window
 
     private static TextBlock Header(string text)
     {
-        var t = new TextBlock { Text = text, FontSize = 22, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, 4, 0, 16) };
-        t.SetResourceReference(TextBlock.FontFamilyProperty, "DisplayFont");
+        var t = new TextBlock { Text = text, FontSize = 24, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, 4, 0, 20) };
         t.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
         return t;
     }
@@ -237,18 +284,18 @@ public partial class SettingsWindow : Window
     {
         if (title != null)
         {
-            var h = new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(4, 6, 0, 8) };
-            h.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
+            var h = new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(6, 4, 0, 10) };
+            h.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
             ContentPanel.Children.Add(h);
         }
-        var card = new Border { CornerRadius = new CornerRadius(12), Margin = new Thickness(0, 0, 0, 16) };
+        var card = new Border { CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 0, 0, 24) };
         card.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
         var stack = new StackPanel();
         for (int i = 0; i < rows.Count; i++)
         {
             if (i > 0)
             {
-                var sep = new Border { Height = 1, Opacity = 0.15, Margin = new Thickness(16, 0, 16, 0) };
+                var sep = new Border { Height = 1, Opacity = 0.15, Margin = new Thickness(20, 0, 20, 0) };
                 sep.SetResourceReference(Border.BackgroundProperty, "FaintBrush");
                 stack.Children.Add(sep);
             }
@@ -260,7 +307,8 @@ public partial class SettingsWindow : Window
 
     private static FrameworkElement BuildRow(Row r)
     {
-        var grid = new Grid { MinHeight = 52, Margin = new Thickness(16, 10, 16, 10) };
+        string? reason = r.Disabled?.Invoke();
+        var grid = new Grid { MinHeight = 56, Margin = new Thickness(20, 14, 20, 14) };
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         if (r.Title.Length > 0)
         {
@@ -270,22 +318,34 @@ public partial class SettingsWindow : Window
         }
         if (r.Description.Length > 0)
         {
-            var d = new TextBlock { Text = r.Description, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
+            var d = new TextBlock { Text = r.Description, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
             d.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
             text.Children.Add(d);
         }
+        if (reason != null)
+        {
+            var why = new TextBlock { Text = reason, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0), FontStyle = FontStyles.Italic };
+            why.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+            text.Children.Add(why);
+        }
         var control = r.Control();
+        if (reason != null)
+        {
+            control.IsEnabled = false;
+            control.IsHitTestVisible = false;
+            control.Opacity = 0.4;
+        }
         if (r.Wide)
         {
             var stack = new StackPanel();
-            if (text.Children.Count > 0) { text.Margin = new Thickness(0, 0, 0, 10); stack.Children.Add(text); }
+            if (text.Children.Count > 0) { text.Margin = new Thickness(0, 0, 0, 12); stack.Children.Add(text); }
             stack.Children.Add(control);
             grid.Children.Add(stack);
             return grid;
         }
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        text.Margin = new Thickness(0, 0, 16, 0);
+        text.Margin = new Thickness(0, 0, 20, 0);
         grid.Children.Add(text);
         control.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(control, 1);
@@ -295,19 +355,21 @@ public partial class SettingsWindow : Window
 
     // ----- control factories
 
-    private Toggle MakeToggle(bool value, Action<bool> set)
+    private Toggle MakeToggle(bool value, Action<bool> set, bool rerender = false)
     {
         var t = new Toggle(value);
-        t.Toggled += on => { set(on); Changed(); };
+        t.Toggled += on => { set(on); Changed(); if (rerender) Render(); };
         return t;
     }
 
-    private Segmented MakeSegmented(string[] options, int selected, Action<int> set)
+    private Segmented MakeSegmented(string[] options, int selected, Action<int> set, bool rerender = false)
     {
         var s = new Segmented(options, selected);
-        s.Changed += i => { set(i); Changed(); };
+        s.Changed += i => { set(i); Changed(); if (rerender) Render(); };
         return s;
     }
+
+    private static string[] L(params string[] keys) => keys.Select(Loc.T).ToArray();
 
     private static TextBlock Small(string text, string brush = "SubBrush")
     {
@@ -320,14 +382,14 @@ public partial class SettingsWindow : Window
     {
         var slider = new Slider2(min, max, value, step) { Width = 220 };
         var text = Small(label(value));
-        text.Width = 48;
+        text.Width = 52;
         text.TextAlignment = TextAlignment.Right;
         slider.ValueChanged += v =>
         {
             set(v);
             text.Text = label(v);
-            if (layoutOnly) { App.Island?.ApplyLayoutOnly(); Changed(everything: false); }
-            else Changed();
+            if (layoutOnly) { App.Island?.ApplyLayoutOnly(); Changed(everything: false, debounce: true); }
+            else Changed(debounce: true);
         };
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(slider);
@@ -350,11 +412,64 @@ public partial class SettingsWindow : Window
         if (danger) t.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x45, 0x3A));
         else t.SetResourceReference(TextBlock.ForegroundProperty, accent ? "AccentFgBrush" : "FgBrush");
         content.Children.Add(t);
-        var b = new Button { Content = content, Height = 32 };
+        var b = new Button { Content = content, Height = 34 };
         b.SetResourceReference(StyleProperty, accent ? "AccentButton" : "PlateButton");
-        if (danger) b.SetResourceReference(BackgroundProperty, "SurfaceHoverBrush");
+        if (danger || !accent) b.SetResourceReference(BackgroundProperty, "SurfaceHoverBrush");
         b.Click += (_, _) => click();
         return b;
+    }
+
+    /// <summary>Choice cards with a preview drawn in the option itself (fonts, shape).</summary>
+    private FrameworkElement Choices(IReadOnlyList<(string Key, Func<FrameworkElement> Preview, string Caption)> items, string selected, Action<string> pick, double width = 112, double height = 72)
+    {
+        var panel = new WrapPanel();
+        foreach (var (key, preview, caption) in items)
+        {
+            bool on = key == selected;
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var p = preview();
+            p.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Add(p);
+            var cap = new TextBlock { Text = caption, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+            cap.SetResourceReference(TextBlock.ForegroundProperty, on ? "AccentBrush" : "SubBrush");
+            stack.Children.Add(cap);
+            var b = new Button { Content = stack, Width = width, Height = height, Margin = new Thickness(0, 0, 10, 10), Tag = key };
+            b.SetResourceReference(StyleProperty, "ThemeCard");
+            b.SetResourceReference(Control.BackgroundProperty, "SurfaceHoverBrush");
+            if (on) b.SetResourceReference(Control.BorderBrushProperty, "AccentBrush");
+            string k = key;
+            b.Click += (_, _) => { pick(k); Changed(); Render(); };
+            panel.Children.Add(b);
+        }
+        return panel;
+    }
+
+    private static TextBlock FontSample(string text, FontFamily family, FontWeight weight, double size)
+    {
+        var t = new TextBlock { Text = text, FontFamily = family, FontWeight = weight, FontSize = size };
+        Typography.SetNumeralAlignment(t, FontNumeralAlignment.Tabular);
+        t.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
+        return t;
+    }
+
+    /// <summary>Mini picture of the island or the notch at the top of a screen.</summary>
+    private static FrameworkElement ShapePreview(bool notch)
+    {
+        var screen = new Grid { Width = 92, Height = 40, ClipToBounds = true };
+        var bezel = new Border { CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1.5) };
+        bezel.SetResourceReference(Border.BorderBrushProperty, "FaintBrush");
+        screen.Children.Add(bezel);
+        var shape = new Border
+        {
+            Width = 44, Height = 12, Background = Brushes.Black,
+            CornerRadius = notch ? new CornerRadius(0, 0, 6, 6) : new CornerRadius(6),
+            VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, notch ? 1.5 : 6, 0, 0),
+        };
+        shape.SetResourceReference(Border.BorderBrushProperty, "AccentBrush");
+        shape.BorderThickness = new Thickness(notch ? 0 : 1);
+        screen.Children.Add(shape);
+        return screen;
     }
 
     // ================= Sections
@@ -362,18 +477,19 @@ public partial class SettingsWindow : Window
     private List<Section> BuildSections()
     {
         var monitors = SafeMonitors();
+        var theme = Themes.Find(S.Theme);
         return new List<Section>
         {
-            new("general", "Общее", "", new List<Group>
+            new("general", Loc.T("set.general"), "", new List<Group>
             {
                 new(null, new List<Row>
                 {
-                    new("Размер острова", "Компактный, обычный или крупный; ползунок для точной настройки. Остров меняется сразу.", () =>
+                    new(Loc.T("set.size"), Loc.T("set.size.d"), () =>
                     {
                         var stack = new StackPanel();
                         var presets = new[] { 0.9, 1.0, 1.15 };
                         int sel = Array.FindIndex(presets, p => Math.Abs(p - S.Scale) < 0.001);
-                        var seg = new Segmented(new[] { "Компактный", "Обычный", "Крупный" }, sel < 0 ? 1 : sel);
+                        var seg = new Segmented(L("set.size.compact", "set.size.normal", "set.size.large"), sel < 0 ? 1 : sel);
                         stack.Children.Add(seg);
                         var slider = MakeSlider(80, 130, Math.Round(S.Scale * 100), 1, v => $"{v:0}%", v => S.Scale = v / 100, layoutOnly: true);
                         slider.Margin = new Thickness(0, 10, 0, 0);
@@ -381,134 +497,208 @@ public partial class SettingsWindow : Window
                         seg.Changed += i => { S.Scale = presets[i]; App.Island?.ApplyLayoutOnly(); Changed(everything: false); Render(); };
                         return stack;
                     }),
-                    new("Отступ сверху", "Расстояние от верхнего края экрана до острова.", () =>
-                        MakeSlider(0, 24, S.TopOffset, 1, v => $"{v:0} px", v => S.TopOffset = v, layoutOnly: true)),
-                    new("Монитор", monitors.Count > 1 ? "На каком экране показывать остров." : "Подключён один монитор.", () =>
+                    new(Loc.T("set.shape"), Loc.T("set.shape.d"), () => Choices(new (string, Func<FrameworkElement>, string)[]
                     {
-                        if (monitors.Count <= 1) return Small("Основной");
-                        var names = monitors.Select((m, i) => i == 0 ? "Основной" : $"Монитор {i + 1}").ToArray();
+                        ("0", () => ShapePreview(false), Loc.T("set.shape.island")),
+                        ("1", () => ShapePreview(true), Loc.T("set.shape.notch")),
+                    }, S.Shape.ToString(CultureInfo.InvariantCulture), k => S.Shape = k == "1" ? 1 : 0, width: 120, height: 78)),
+                    new(Loc.T("set.offset"), Loc.T("set.offset.d"), () =>
+                        MakeSlider(0, 24, S.TopOffset, 1, v => $"{v:0} px", v => S.TopOffset = v, layoutOnly: true),
+                        Disabled: () => S.Shape == 1 ? Loc.T("set.offset.notch") : null),
+                    new(Loc.T("set.monitor"), Loc.T(monitors.Count > 1 ? "set.monitor.d" : "set.monitor.one"), () =>
+                    {
+                        if (monitors.Count <= 1) return Small(Loc.T("set.monitor.main"));
+                        var names = monitors.Select((m, i) => i == 0 ? Loc.T("set.monitor.main") : Loc.F("set.monitor.n", i + 1)).ToArray();
                         return MakeSegmented(names, Math.Clamp(S.Monitor, 0, names.Length - 1), i => S.Monitor = i);
                     }),
                 }),
-                new("Вид в покое", new List<Row>
+                new(Loc.T("set.idle"), new List<Row>
                 {
-                    new("Вид в покое", "Минимальный: только часы или обложка с эквалайзером; подробности при наведении. Подробный: время, дата, погода и название трека всегда.", () =>
-                        MakeSegmented(new[] { "Минимальный", "Подробный" }, S.MinimalIdle ? 0 : 1, i => S.MinimalIdle = i == 0)),
-                    new("Часы при музыке", "В минимальном виде показывать время между обложкой и эквалайзером.", () =>
+                    new(Loc.T("set.idle.view"), Loc.T("set.idle.view.d"), () =>
+                        MakeSegmented(L("set.idle.detailed", "set.idle.minimal"), S.MinimalIdle ? 1 : 0, i => S.MinimalIdle = i == 1, rerender: true)),
+                    new(Loc.T("set.clockmusic"), Loc.T("set.clockmusic.d"), () =>
                         MakeToggle(S.ClockWithMusic, v => S.ClockWithMusic = v)),
-                    new("Прятать в полноэкранных приложениях", "Игры, видео на весь экран, презентации: остров уезжает вверх и возвращается сам.", () =>
+                    new(Loc.T("set.greetings"), Loc.T("set.greetings.d"), () =>
+                        MakeToggle(S.Greetings, v => S.Greetings = v),
+                        Disabled: () => S.MinimalIdle ? Loc.T("set.onlydetailed") : null),
+                    new(Loc.T("set.clock24"), Loc.T("set.clock24.d"), () =>
+                        MakeSegmented(new[] { "24", "12" }, S.Clock24 ? 0 : 1, i => S.Clock24 = i == 0)),
+                    new(Loc.T("set.fullscreen"), Loc.T("set.fullscreen.d"), () =>
                         MakeToggle(S.HideInFullscreen, v => S.HideInFullscreen = v)),
                 }),
-                new("Система", new List<Row>
+                new(Loc.T("set.system"), new List<Row>
                 {
-                    new("Запускать вместе с Windows", "Остров появится сразу после входа в систему.", () =>
+                    new(Loc.T("set.autostart"), Loc.T("set.autostart.d"), () =>
                         MakeToggle(AutoStart.IsEnabled, v => AutoStart.Set(v))),
-                    new("Горячая клавиша", "Раскрыть или свернуть остров с клавиатуры. Нажми на сочетание, чтобы задать своё.", HotkeyControl),
-                    new("Язык", "Пока интерфейс только на русском, английский появится позже.", () =>
-                        MakeSegmented(new[] { "Как в Windows", "Русский", "English" },
-                            S.Language switch { "ru" => 1, "en" => 2, _ => 0 }, i => S.Language = i switch { 1 => "ru", 2 => "en", _ => "system" })),
+                    new(Loc.T("set.hotkey"), Loc.T("set.hotkey.d"), HotkeyControl),
+                    new(Loc.T("set.language"), Loc.T("set.language.d"), () =>
+                        MakeSegmented(new[] { Loc.T("set.language.system"), "Русский", "English" },
+                            S.Language switch { "ru" => 1, "en" => 2, _ => 0 }, i =>
+                            {
+                                S.Language = i switch { 1 => "ru", 2 => "en", _ => "system" };
+                                S.Save();
+                                Loc.Apply(S.Language);   // applies at once, no restart
+                            })),
                 }),
             }),
 
-            new("appearance", "Внешний вид", "", new List<Group>
+            new("appearance", Loc.T("set.appearance"), "", new List<Group>
             {
-                new("Тема", new List<Row> { new("", "", ThemeGrid, Wide: true) }),
-                new(null, new List<Row>
+                new(Loc.T("set.theme"), new List<Row> { new("", "", ThemeGrid, Wide: true) }),
+                new(Loc.T("set.fonts"), new List<Row>
                 {
-                    new("Шрифт", "Шрифт всего острова. Меняется сразу.", () =>
-                        MakeSegmented(Settings.Fonts, Math.Max(0, Array.IndexOf(Settings.Fonts, S.Font)), i =>
+                    new(Loc.T("set.font"), Loc.T("set.font.d"), () => Choices(
+                        Settings.Fonts.Select(f => (f, (Func<FrameworkElement>)(() => FontSample("Аа Bb", App.TextFace(f), FontWeights.SemiBold, 20)),
+                            f == "System" ? Loc.T("set.font.system") : f)).ToList(),
+                        S.Font, k => { S.Font = k; App.ApplyFont(k); }), Wide: true),
+                    new(Loc.T("set.clockfont"), Loc.T("set.clockfont.d"), () => Choices(
+                        Settings.ClockFonts.Select(f => (f, (Func<FrameworkElement>)(() =>
                         {
-                            S.Font = Settings.Fonts[i];
-                            App.ApplyFont(S.Font);
-                        })),
-                    new("Цветное пятно от обложки", "Мягкий отсвет цвета обложки в углу острова (в темах OLED и Белая).", () =>
-                        MakeToggle(S.ArtworkTint, v => S.ArtworkTint = v)),
-                    new("Анимации", "Скорость всех анимаций. «Без анимаций» также выключает живой фон погоды.", () =>
-                        MakeSegmented(new[] { "Обычные", "Быстрые", "Без анимаций" },
-                            S.AnimationSpeed >= 1 ? 0 : S.AnimationSpeed > 0 ? 1 : 2, i => S.AnimationSpeed = i switch { 0 => 1, 1 => 0.6, _ => 0 })),
+                            var (family, weight) = App.ClockFace(f);
+                            return FontSample("12:34", family, weight, 20);
+                        }), f)).ToList(),
+                        S.ClockFont, k => { S.ClockFont = k; App.ApplyClockFont(k); }), Wide: true),
+                }),
+                new(null, new List<Row>
+                {
+                    new(Loc.T("set.tint"), Loc.T("set.tint.d"), () =>
+                        MakeToggle(S.ArtworkTint, v => S.ArtworkTint = v),
+                        Disabled: () => theme.IsGradient ? Loc.T("set.tint.colored") : null),
+                    new(Loc.T("set.anim"), Loc.T("set.anim.d"), () =>
+                        MakeSegmented(L("set.anim.normal", "set.anim.fast", "set.anim.off"),
+                            S.AnimationSpeed >= 1 ? 0 : S.AnimationSpeed > 0 ? 1 : 2, i => S.AnimationSpeed = i switch { 0 => 1, 1 => 0.6, _ => 0 }, rerender: true)),
                 }),
             }),
 
-            new("music", "Музыка", "", new List<Group>
+            new("music", Loc.T("set.music"), "", new List<Group>
             {
+                new(Loc.T("set.lyrics"), new List<Row>
+                {
+                    new(Loc.T("set.lyrics.place"), Loc.T("set.lyrics.place.d"), () =>
+                        MakeSegmented(L("set.lyrics.in", "set.lyrics.under", "set.lyrics.none"), S.LyricsPlace, i => S.LyricsPlace = i, rerender: true)),
+                    new(Loc.T("set.lyrics.size"), Loc.T("set.lyrics.size.d"), () =>
+                        MakeSlider(12, 18, S.LyricsSize, 1, v => $"{v:0} px", v => S.LyricsSize = v, layoutOnly: false),
+                        Disabled: () => S.LyricsPlace == 2 ? Loc.T("set.lyrics.off") : null),
+                    new(Loc.T("set.lyrics.backing"), Loc.T("set.lyrics.backing.d"), () =>
+                        MakeToggle(S.LyricsBacking, v => S.LyricsBacking = v),
+                        Disabled: () => S.LyricsPlace == 2 ? Loc.T("set.lyrics.off") : null),
+                    new(Loc.T("set.lyrics.artist"), Loc.T("set.lyrics.artist.d"), () =>
+                        MakeToggle(S.LyricsArtistFallback, v => S.LyricsArtistFallback = v),
+                        Disabled: () => S.LyricsPlace != 0 ? Loc.T("set.lyrics.onlyin") : S.MinimalIdle ? Loc.T("set.onlydetailed") : null),
+                }),
                 new(null, new List<Row>
                 {
-                    new("Текст песни под островом", "Строка текста с lrclib.net под капсулой, пока играет музыка.", () =>
-                        MakeToggle(S.ShowLyrics, v => S.ShowLyrics = v)),
-                    new("Размер текста песни", "Размер шрифта строки под островом.", () =>
-                        MakeSlider(13, 18, S.LyricsSize, 1, v => $"{v:0} px", v => S.LyricsSize = v, layoutOnly: false)),
-                    new("Показывать эквалайзер", "Прыгающие полоски рядом с треком.", () =>
+                    new(Loc.T("set.eq"), Loc.T("set.eq.d"), () =>
                         MakeToggle(S.ShowEqualizer, v => S.ShowEqualizer = v)),
-                    new("Громкость", "«Только плеера» меняет громкость того приложения, где играет музыка. «Системная» меняет общую громкость Windows.", () =>
-                        MakeSegmented(new[] { "Только плеера", "Системная" }, S.SystemVolume ? 1 : 0, i => S.SystemVolume = i == 1)),
-                    new("Управление кликом", "Клик по свёрнутому острову ставит на паузу, двойной клик включает следующий трек. Колёсико меняет громкость всегда.", () =>
+                    new(Loc.T("set.volume"), Loc.T("set.volume.d"), () =>
+                        MakeSegmented(L("set.volume.player", "set.volume.system"), S.SystemVolume ? 1 : 0, i => S.SystemVolume = i == 1)),
+                    new(Loc.T("set.click"), Loc.T("set.click.d"), () =>
                         MakeToggle(S.ClickControl, v => S.ClickControl = v)),
                 }),
             }),
 
-            new("weather", "Погода", "", new List<Group>
+            new("weather", Loc.T("set.weather"), "", new List<Group>
             {
-                new("Места", new List<Row> { new("", "", PlacesControl, Wide: true) }),
+                new(Loc.T("set.places"), new List<Row> { new("", "", PlacesControl, Wide: true) }),
                 new(null, new List<Row>
                 {
-                    new("Температура", "Единицы температуры.", () =>
+                    new(Loc.T("set.temp"), Loc.T("set.temp.d"), () =>
                         MakeSegmented(new[] { "°C", "°F" }, S.Fahrenheit ? 1 : 0, i => S.Fahrenheit = i == 1)),
-                    new("Ветер", "Единицы скорости ветра.", () =>
-                        MakeSegmented(new[] { "м/с", "км/ч" }, S.WindKmh ? 1 : 0, i => S.WindKmh = i == 1)),
-                    new("Погода в свёрнутом острове", "Иконка и температура рядом с часами в подробном виде.", () =>
-                        MakeToggle(S.WeatherInCapsule, v => S.WeatherInCapsule = v)),
+                    new(Loc.T("set.wind"), Loc.T("set.wind.d"), () =>
+                        MakeSegmented(L("unit.ms", "unit.kmh", "unit.mph", "unit.kn"), S.WindUnit, i => S.WindUnit = i)),
+                    new(Loc.T("set.wcapsule"), Loc.T("set.wcapsule.d"), () =>
+                        MakeToggle(S.WeatherInCapsule, v => S.WeatherInCapsule = v),
+                        Disabled: () => S.MinimalIdle ? Loc.T("set.onlydetailed") : null),
+                    new(Loc.T("set.live"), Loc.T("set.live.d"), () =>
+                        MakeSegmented(L("set.live.off", "set.live.calm", "set.live.full"), S.LiveWeather, i => S.LiveWeather = i),
+                        Disabled: () => S.AnimationSpeed <= 0 ? Loc.T("set.live.noanim") : null),
                 }),
             }),
 
-            new("calendar", "Календарь", "", new List<Group>
+            new("calendar", Loc.T("set.calendar"), "", new List<Group>
             {
                 new(null, new List<Row>
                 {
-                    new("Неделя начинается с", "Первый день недели в сетке месяца.", () =>
-                        MakeSegmented(new[] { "Пн", "Вс" }, S.WeekStartsMonday ? 0 : 1, i => S.WeekStartsMonday = i == 0)),
-                    new("Ближайшее событие на Главной", "Под часами: «14:30 · Созвон».", () =>
+                    new(Loc.T("set.week"), Loc.T("set.week.d"), () =>
+                        MakeSegmented(L("set.week.mon", "set.week.sun"), S.WeekStartsMonday ? 0 : 1, i => S.WeekStartsMonday = i == 0)),
+                    new(Loc.T("set.nextevent"), Loc.T("set.nextevent.d"), () =>
                         MakeToggle(S.ShowNextEvent, v => S.ShowNextEvent = v)),
-                    new("Напоминания в острове", "В момент напоминания остров показывает событие.", () =>
-                        MakeToggle(S.Reminders, v => S.Reminders = v)),
-                    new("Длительность напоминания", "Сколько секунд событие держится в острове.", () =>
-                        MakeSegmented(new[] { "5 с", "8 с", "15 с" }, S.ReminderSeconds switch { 5 => 0, 15 => 2, _ => 1 },
-                            i => S.ReminderSeconds = i switch { 0 => 5, 2 => 15, _ => 8 })),
+                    new(Loc.T("set.reminders"), Loc.T("set.reminders.d"), () =>
+                        MakeToggle(S.Reminders, v => S.Reminders = v, rerender: true)),
+                    new(Loc.T("set.remlen"), Loc.T("set.remlen.d"), () =>
+                        MakeSegmented(new[] { Loc.F("set.sec", 5), Loc.F("set.sec", 8), Loc.F("set.sec", 15) }, S.ReminderSeconds switch { 5 => 0, 15 => 2, _ => 1 },
+                            i => S.ReminderSeconds = i switch { 0 => 5, 2 => 15, _ => 8 }),
+                        Disabled: () => !S.Reminders ? Loc.T("set.remlen.off") : null),
                 }),
             }),
 
-            new("about", "О программе", "", AboutGroups()),
+            new("notifications", Loc.T("set.notifications"), "", NotificationGroups()),
+
+            new("about", Loc.T("set.about"), "", AboutGroups()),
         };
+    }
+
+    private List<Group> NotificationGroups()
+    {
+        string status = App.Island?.NotificationStatus ?? "identity";
+        string? chatOff = !S.Notifications ? Loc.T("set.notify.off") : null;
+        var chats = new List<Row>
+        {
+            new(Loc.T("set.notify"), Loc.T("set.notify.d"), () => MakeToggle(S.Notifications, v => S.Notifications = v, rerender: true)),
+            new("Telegram", Loc.T("set.notify.tg"), () => MakeToggle(S.NotifyTelegram, v => S.NotifyTelegram = v),
+                Disabled: () => chatOff ?? (status == "identity" ? Loc.T("set.notify.identity.short") : null)),
+            new("Discord", Loc.T("set.notify.dc"), () => MakeToggle(S.NotifyDiscord, v => S.NotifyDiscord = v),
+                Disabled: () => chatOff ?? (status == "identity" ? Loc.T("set.notify.identity.short") : null)),
+            new(Loc.T("set.notify.access"), status switch
+            {
+                "" => Loc.T("set.notify.access.ok"),
+                "denied" => Loc.T("set.notify.access.denied"),
+                "identity" => Loc.T("set.notify.access.identity"),
+                _ => Loc.T("set.notify.access.ask"),
+            }, () =>
+            {
+                if (status == "") return Small("✓", "AccentBrush");
+                if (status == "identity") return Small("—");
+                return MakeButton(Loc.T(status == "denied" ? "set.notify.open" : "set.notify.allow"), "", async () =>
+                {
+                    if (status == "denied") { Open("ms-settings:privacy-notifications"); return; }
+                    if (App.Island != null) await App.Island.RequestNotificationAccessAsync();
+                    Render();
+                }, accent: true);
+            }),
+        };
+        var shots = new List<Row>
+        {
+            new(Loc.T("set.shots"), Loc.T("set.shots.d"), () => MakeToggle(S.Screenshots, v => S.Screenshots = v), Disabled: () => chatOff),
+        };
+        return new List<Group> { new(Loc.T("set.notify.chats"), chats), new(Loc.T("set.shots.group"), shots) };
     }
 
     private List<Group> AboutGroups()
     {
         var rows = new List<Row>
         {
-            new("Версия", "Dynamic Mochi " + (typeof(App).Assembly.GetName().Version?.ToString(3) ?? ""), () => Small("")),
-            new("GitHub", "Исходный код, сборки и баг-репорты.", () =>
-                MakeButton("Открыть", "", () => Open("https://github.com/aefyno/Dynamic-Mochi"))),
-            new("Папка с логами", "log.txt, настройки, события календаря и кеш погоды.", () =>
-                MakeButton("Открыть папку", "", () => { Directory.CreateDirectory(Log.Folder); Open(Log.Folder); })),
-            new("Сбросить все настройки", "Вернуть всё как после установки. События календаря и сохранённые места тоже сбросятся.", () =>
-            {
-                Button? b = null;
-                b = MakeButton(_resetArmed ? "Точно сбросить?" : "Сбросить", "", () =>
+            new(Loc.T("set.version"), "Dynamic Mochi " + App.Version, () => Small("")),
+            new("GitHub", Loc.T("set.github.d"), () =>
+                MakeButton(Loc.T("set.open"), "", () => Open("https://github.com/aefyno/Dynamic-Mochi"))),
+            new(Loc.T("set.logs"), Loc.T("set.logs.d"), () =>
+                MakeButton(Loc.T("set.logs.open"), "", () => { Directory.CreateDirectory(Log.Folder); Open(Log.Folder); })),
+            new(Loc.T("set.reset"), Loc.T("set.reset.d"), () =>
+                MakeButton(Loc.T(_resetArmed ? "set.reset.sure" : "set.reset.do"), "", () =>
                 {
                     if (!_resetArmed) { _resetArmed = true; Render(); return; }
                     _resetArmed = false;
                     ResetAll();
-                }, danger: true);
-                return b;
-            }),
+                }, danger: true)),
         };
         var groups = new List<Group> { new(null, rows) };
         if (_previewUnlocked)
         {
-            groups.Add(new("Для тестов", new List<Row>
+            groups.Add(new(Loc.T("set.tests"), new List<Row>
             {
-                new("Предпросмотр погоды", "Показать живой фон без реальной погоды. Открой вкладку Погода в острове.", () =>
+                new(Loc.T("set.wpreview"), Loc.T("set.wpreview.d"), () =>
                 {
-                    var names = new[] { "Выкл", "Ясно", "Ночь", "Облака", "Туман", "Морось", "Дождь", "Снег", "Гроза" };
+                    var names = L("set.wp.off", "set.wp.sun", "set.wp.night", "set.wp.clouds", "set.wp.fog", "set.wp.drizzle", "set.wp.rain", "set.wp.snow", "set.wp.storm");
                     var seg = new Segmented(names, 0);
                     seg.Changed += i => App.Island?.PreviewWeather(i == 0 ? null : (WeatherFx.Fx)(i switch
                     {
@@ -539,9 +729,12 @@ public partial class SettingsWindow : Window
         var fresh = new Settings();
         fresh.SettingsWindow = S.SettingsWindow;
         fresh.FirstRunDone = true;
+        fresh.SettingsVersion = Settings.CurrentVersion;
         S.CopyFrom(fresh);
         S.Save();
         App.ApplyFont(S.Font);
+        App.ApplyClockFont(S.ClockFont);
+        Loc.Apply(S.Language);
         App.Island?.ApplySettings();
         App.Island?.PlacesChanged();
         ApplyBackdrop();
@@ -572,6 +765,8 @@ public partial class SettingsWindow : Window
                 Changed();
                 foreach (var (c, k, th) in cards) ThemeCards.SetSelected(c, k, th.Name == S.Theme);
                 ApplyBackdrop();
+                HighlightNav();
+                Render();
             });
             card.Margin = new Thickness(0, 0, 10, 10);
             cards.Add((card, check, theme));
@@ -591,7 +786,7 @@ public partial class SettingsWindow : Window
         _hotkeyButton = MakeButton(Native.HotkeyLabel(S.HotkeyModifiers, S.HotkeyKey), null, () =>
         {
             _capturingHotkey = true;
-            SetHotkeyLabel("Нажми сочетание…");
+            SetHotkeyLabel(Loc.T("set.hotkey.press"));
         });
         var toggle = MakeToggle(S.HotkeyEnabled, v => S.HotkeyEnabled = v);
         toggle.Margin = new Thickness(10, 0, 0, 0);
@@ -611,7 +806,7 @@ public partial class SettingsWindow : Window
     {
         if (_hotkeyStatus == null) return;
         bool taken = S.HotkeyEnabled && App.Island != null && !App.Island.HotkeyRegistered;
-        _hotkeyStatus.Text = taken ? "занято другой программой" : "";
+        _hotkeyStatus.Text = taken ? Loc.T("set.hotkey.taken") : "";
         _hotkeyStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x45, 0x3A));
     }
 
@@ -634,7 +829,7 @@ public partial class SettingsWindow : Window
         if ((m & ModifierKeys.Alt) != 0) mods |= Native.MOD_ALT;
         if ((m & ModifierKeys.Shift) != 0) mods |= Native.MOD_SHIFT;
         if ((m & ModifierKeys.Windows) != 0 || Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin)) mods |= Native.MOD_WIN;
-        if (mods == 0) { SetHotkeyLabel("Нужен Ctrl, Alt или Win"); _capturingHotkey = true; return; }
+        if (mods == 0) { SetHotkeyLabel(Loc.T("set.hotkey.need")); _capturingHotkey = true; return; }
         S.HotkeyModifiers = mods;
         S.HotkeyKey = KeyInterop.VirtualKeyFromKey(key);
         S.HotkeyEnabled = true;
@@ -683,12 +878,12 @@ public partial class SettingsWindow : Window
         }
         if (S.Places.Count == 0)
         {
-            var empty = Small("Пока ни одного места. Добавь город, и погода появится в острове.");
+            var empty = Small(Loc.T("set.places.empty"));
             empty.Margin = new Thickness(4, 0, 0, 8);
             stack.Children.Add(empty);
         }
         bool full = S.Places.Count >= Settings.MaxPlaces;
-        var add = MakeButton(full ? "Можно сохранить до 3 мест" : "Добавить место", "", OpenPlaceDialog);
+        var add = MakeButton(Loc.T(full ? "set.places.full" : "set.places.add"), "", OpenPlaceDialog);
         add.IsEnabled = !full;
         add.HorizontalAlignment = HorizontalAlignment.Left;
         add.Margin = new Thickness(0, 8, 0, 0);
@@ -761,10 +956,10 @@ public partial class SettingsWindow : Window
         ShowPlaceHits(new List<PlaceHit>(), new List<bool>());
         ShowPlaceHint(null);
         OpenLocationSettings.Visibility = Visibility.Collapsed;
-        DialogTitle.Text = district ? "Уточнить район" : "Добавить место";
-        DialogSubtitle.Text = district && _pendingCity != null ? $"Необязательно. Погода будет точнее для твоего места в городе {_pendingCity.Name}." : "";
+        DialogTitle.Text = Loc.T(district ? "dlg.district" : "set.places.add");
+        DialogSubtitle.Text = district && _pendingCity != null ? Loc.F("dlg.district.sub", _pendingCity.Name) : "";
         DialogSubtitle.Visibility = district ? Visibility.Visible : Visibility.Collapsed;
-        PlaceBox.Tag = district ? "Район или улица" : "Город, район или улица";
+        PlaceBox.Tag = Loc.T(district ? "dlg.district.box" : "dlg.city.box");
         LocateRow.Visibility = district ? Visibility.Collapsed : Visibility.Visible;
         DistrictButtons.Visibility = district ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -819,13 +1014,13 @@ public partial class SettingsWindow : Window
             }
             if (cts.IsCancellationRequested) return;
             ShowPlaceHits(hits, isCity);
-            if (hits.Count == 0) ShowPlaceHint(_pendingCity != null ? "Ничего не нашлось в этом городе" : "Ничего не нашлось");
+            if (hits.Count == 0) ShowPlaceHint(Loc.T(_pendingCity != null ? "dlg.none.city" : "dlg.none"));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             Log.Write("place search failed: " + ex.Message);
-            if (!cts.IsCancellationRequested) ShowPlaceHint("Не получилось найти. Проверь интернет.");
+            if (!cts.IsCancellationRequested) ShowPlaceHint(Loc.T("dlg.neterror"));
         }
         finally
         {
@@ -959,20 +1154,20 @@ public partial class SettingsWindow : Window
     private async void Locate_Click(object sender, RoutedEventArgs e)
     {
         LocateRow.IsEnabled = false;
-        ShowPlaceHint("Определяю место…");
+        ShowPlaceHint(Loc.T("dlg.locating"));
         OpenLocationSettings.Visibility = Visibility.Collapsed;
         try
         {
             var (result, lat, lon) = await PlaceService.LocateAsync();
             if (result == PlaceService.LocateResult.Denied)
             {
-                ShowPlaceHint("Разреши доступ к местоположению в Параметрах Windows (Конфиденциальность → Расположение).");
+                ShowPlaceHint(Loc.T("dlg.loc.denied"));
                 OpenLocationSettings.Visibility = Visibility.Visible;
                 return;
             }
             if (result != PlaceService.LocateResult.Ok)
             {
-                ShowPlaceHint("Не получилось определить место. Найди город вручную.");
+                ShowPlaceHint(Loc.T("dlg.loc.failed"));
                 return;
             }
             string name;

@@ -20,29 +20,27 @@ namespace DynamicMochi;
 public partial class IslandWindow : Window
 {
     // Capsule sizes before the user scale (Settings.Scale is applied as a LayoutTransform)
-    private const double PlayingW = 340, IdleW = 260, DetailH = 52;     // detailed collapsed view
-    private const double MinPlayW = 240, MinIdleW = 200, MinH = 36;     // minimal collapsed view (default)
-    private const double ActivityW = 380;
+    private const double PlayingW = 420, IdleW = 300, DetailH = 58;     // collapsed view (v1.4 default, SPEC-v1.4 §4)
+    private const double MinPlayW = 240, MinIdleW = 200, MinH = 36;     // minimal collapsed view (option)
     private const double ExpandedW = 600;
-    private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 292, WeatherH = 400, SettingsH = 350;
+    private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 330, WeatherH = 436, SettingsH = 350;
     private const double BaseWindowW = 700, BaseWindowH = 500;
 
     private Settings _settings => App.Settings;
     private readonly DispatcherTimer _uiTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly DispatcherTimer _expandTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
-    private readonly DispatcherTimer _deepTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _unpeekTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private readonly DispatcherTimer _clickTimer = new() { Interval = TimeSpan.FromMilliseconds(260) };
     private readonly DispatcherTimer _osdTimer = new() { Interval = TimeSpan.FromMilliseconds(1000) };
-    private static readonly CultureInfo Ru = new("ru-RU");
+    private static CultureInfo Ru => Loc.Culture;   // date culture follows the interface language
 
     private Theme _theme = Themes.Find(null);
     private readonly List<(Button Card, Border Check, Theme Theme)> _themeCards = new();
 
     private IntPtr _hwnd;
     private bool _expanded;
-    private bool _peek;            // minimal view grown to the detailed size on hover
+    private bool _peek;            // minimal view shown at the detailed size (first-run hint only)
     private bool _hotkeyOpen;      // opened with the hotkey: stays until the hotkey again or mouse in-and-out
     private bool _hidden;          // slid away for a full-screen app
     private bool _loading = true;
@@ -66,21 +64,11 @@ public partial class IslandWindow : Window
         Loaded += OnLoaded;
         Deactivated += OnDeactivated;
         _uiTimer.Tick += (_, _) => UiTick();
+        // one continuous movement from the collapsed view to the expanded one, no stop in between (SPEC-v1.4 §3)
         _expandTimer.Tick += (_, _) =>
         {
             _expandTimer.Stop();
-            if (!Capsule.IsMouseOver || _expanded) return;
-            if (_settings.MinimalIdle && !_peek && _activity == null)
-            {
-                SetPeek(true);          // first grow to the detailed view…
-                _deepTimer.Start();     // …and open fully if the mouse stays
-            }
-            else Expand();
-        };
-        _deepTimer.Tick += (_, _) =>
-        {
-            _deepTimer.Stop();
-            if (Capsule.IsMouseOver && !_expanded) Expand();
+            if (Capsule.IsMouseOver && !_expanded && !HoldsHover) Expand();
         };
         _unpeekTimer.Tick += (_, _) =>
         {
@@ -95,12 +83,15 @@ public partial class IslandWindow : Window
         _clickTimer.Tick += async (_, _) => { _clickTimer.Stop(); await TogglePlayAsync(); };
         _osdTimer.Tick += (_, _) => { _osdTimer.Stop(); Fade(VolumeOsd, 0, 250, 0); };
 
-        foreach (var box in new[] { FormTitle, FormTime })
+        foreach (var box in new[] { FormTitle, FormTime, TaskTitle, TaskTime, TimerInput })
             box.PreviewMouseLeftButtonDown += (_, _) => EnableKeyboard();
-        foreach (var sv in new[] { SettingsPage, DaysScroll, DayScroll, EventForm })
+        foreach (var sv in new[] { SettingsPage, DaysScroll, DayScroll, EventForm, TasksScroll })
+        {
             sv.ScrollChanged += ThinScroll_ScrollChanged;
-        MusicTitle.SetFontResource("DisplayFont");
+            sv.PreviewMouseWheel += ThinScroll_PreviewMouseWheel;
+        }
         Capsule.ContextMenu = App.BuildMenu();
+        Loc.Changed += () => Step("language", OnLanguageChanged);
     }
 
     // ================= Window, layout, hotkey
@@ -112,10 +103,12 @@ public partial class IslandWindow : Window
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
         ApplyLayout();
         RegisterHotkey();
+        _clipboardHooked = AddClipboardFormatListener(_hwnd);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WM_CLIPBOARDUPDATE) OnClipboardUpdate();
         if (msg == Native.WM_HOTKEY && wParam.ToInt32() == 1)
         {
             handled = true;
@@ -146,7 +139,11 @@ public partial class IslandWindow : Window
         double s = _settings.Scale;
         IslandScale.ScaleX = s;
         IslandScale.ScaleY = s;
-        IslandStack.Margin = new Thickness(0, _settings.TopOffset, 0, 0);
+        bool notch = _settings.Shape == 1;
+        IslandStack.Margin = new Thickness(0, notch ? 0 : _settings.TopOffset, 0, 0);
+        EarLeft.Visibility = EarRight.Visibility = notch ? Visibility.Visible : Visibility.Collapsed;
+        if (!_loading) { ApplyBackground(Dur(0)); SetGradientShape(_expanded, 0); }
+        Capsule_SizeChanged(Capsule, null);
         Width = BaseWindowW * s;
         Height = BaseWindowH * s;
         PlaceOnScreen();
@@ -166,7 +163,7 @@ public partial class IslandWindow : Window
         if (hide == _hidden) return;
         _hidden = hide;
         if (hide && _expanded) Collapse();
-        double to = hide ? -(IslandStack.ActualHeight * _settings.Scale + _settings.TopOffset + 30) : 0;
+        double to = hide ? -(IslandStack.ActualHeight * _settings.Scale + IslandStack.Margin.Top + 30) : 0;
         HideShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(to, Dur(250))
         {
             EasingFunction = new CubicEase { EasingMode = hide ? EasingMode.EaseIn : EasingMode.EaseOut },
@@ -184,9 +181,14 @@ public partial class IslandWindow : Window
         Step("shape", () => SetGradientShape(expanded: false, ms: 0));
         Step("track", () => ShowTrack(null));
         Step("calendar", InitCalendar);
+        Step("tasks", InitTasks);
+        Step("timer", InitTimer);
+        Step("screenshots", InitScreenshots);
+        Step("notifications", () => _ = InitNotificationsAsync());
         Step("weather", InitWeather);
         Step("tabs", () => SelectTab("home", animate: false));
-        Step("version", () => VersionText.Text = "Dynamic Mochi " + (typeof(IslandWindow).Assembly.GetName().Version?.ToString(3) ?? ""));
+        Step("version", () => VersionText.Text = "Dynamic Mochi " + App.Version);
+        Step("layout", ApplyLayout);
         _loading = false;
 
         // appear from a point; always runs, otherwise the island stays invisible
@@ -219,7 +221,8 @@ public partial class IslandWindow : Window
         Step("hotkey", () => RegisterHotkey());
         Step("toggles", RefreshToggles);
         Step("music", ApplyMusicSettings);
-        Step("collapsed", () => { if (!_settings.MinimalIdle) _peek = false; UpdateCollapsedRow(); });
+        Step("collapsed", () => { if (!_settings.MinimalIdle) _peek = false; UpdateClocks(force: true); UpdateCollapsedRow(); });
+        Step("notifications", ApplyNotificationSettings);
         Step("calendar", () => { RenderCalendar(0); UpdateHomeEvent(); });
         Step("weather", WeatherSettingsChanged);
         Step("fx", UpdateWeatherFx);
@@ -233,9 +236,7 @@ public partial class IslandWindow : Window
         var dur = animate ? Dur(250) : TimeSpan.Zero;
         App.ApplyThemeBrushes(t, animate);
 
-        AnimateColor(BgTopStop, GradientStop.ColorProperty, t.GradTop, dur);
-        AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
-        AnimateColor(BgEndStop, GradientStop.ColorProperty, t.GradEnd, dur);
+        ApplyBackground(dur);
         AnimateColor(StripTopStop, GradientStop.ColorProperty, WithAlpha(t.GradTop, 0.9), dur);
         AnimateColor(StripEndStop, GradientStop.ColorProperty, WithAlpha(t.GradEnd, 0.9), dur);
 
@@ -247,7 +248,7 @@ public partial class IslandWindow : Window
         var glowColor = t.HasGlow ? Color.FromRgb(t.Glow.R, t.Glow.G, t.Glow.B) : Colors.Black;
         double glowOpacity = t.HasGlow ? t.Glow.A / 255.0 : t.ShadowOpacity;
         GlowEffect.ShadowDepth = t.HasGlow ? 0 : 6;
-        GlowEffect.BlurRadius = t.HasGlow ? 26 : 24;
+        GlowEffect.BlurRadius = t.HasGlow ? 22 : 24;
         AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, glowColor, dur);
         AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, glowOpacity, dur);
         StripShadow.Color = glowColor;
@@ -261,6 +262,24 @@ public partial class IslandWindow : Window
         RefreshFormChips();
         UpdateWeatherFx();
         Capsule_SizeChanged(Capsule, null);
+        foreach (var ring in new[] { MiniTimerRing, IdleTimerRing, TimerRing }) ring.InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Background colours. Island: GradTop → GradMid → black. Notch: black at the top edge (it merges with the
+    /// screen bezel) flowing into the theme colour towards the bottom (SPEC-v1.4 §17).
+    /// </summary>
+    private void ApplyBackground(TimeSpan dur)
+    {
+        var t = _theme;
+        bool notch = _settings.Shape == 1 && !t.IsLight;
+        AnimateColor(BgTopStop, GradientStop.ColorProperty, notch ? Colors.Black : t.GradTop, dur);
+        AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
+        AnimateColor(BgEndStop, GradientStop.ColorProperty, notch ? t.GradTop : t.GradEnd, dur);
+        var ear = new SolidColorBrush(notch ? Colors.Black : t.GradTop);
+        ear.Freeze();
+        EarLeft.Fill = ear;
+        EarRight.Fill = ear;
     }
 
     private static void AnimateColor(Animatable target, DependencyProperty prop, Color to, TimeSpan dur)
@@ -288,8 +307,9 @@ public partial class IslandWindow : Window
     }
 
     /// <summary>
-    /// Collapsed: horizontal, colour on the left flowing into black on the right.
-    /// Expanded: diagonal from the top-left corner: GradTop 0 % → GradMid 35 % → black 75 %.
+    /// Island collapsed: horizontal, GradTop 0 % → GradMid 55 % → black 100 % (black only at the very end).
+    /// Island expanded: diagonal from the top-left corner with the same stops.
+    /// Notch: vertical, black at the top edge.
     /// </summary>
     private void SetGradientShape(bool expanded, int ms)
     {
@@ -306,10 +326,18 @@ public partial class IslandWindow : Window
             if (animate) s.BeginAnimation(GradientStop.OffsetProperty, new DoubleAnimation(to, dur) { EasingFunction = ease });
             else { s.BeginAnimation(GradientStop.OffsetProperty, null); s.Offset = to; }
         }
+        if (_settings.Shape == 1)
+        {
+            P(LinearGradientBrush.StartPointProperty, new Point(0.5, 0));
+            P(LinearGradientBrush.EndPointProperty, new Point(0.5, 1));
+            O(BgMidStop, 0.55);
+            O(BgEndStop, 1.0);
+            return;
+        }
         P(LinearGradientBrush.StartPointProperty, expanded ? new Point(0, 0) : new Point(0, 0.5));
         P(LinearGradientBrush.EndPointProperty, expanded ? new Point(1, 1) : new Point(1, 0.5));
-        O(BgMidStop, expanded ? 0.35 : 0.5);
-        O(BgEndStop, expanded ? 0.75 : 1.0);
+        O(BgMidStop, 0.55);
+        O(BgEndStop, 1.0);
     }
 
     /// <summary>Colour blob in the top-right corner: weather on the weather tab, otherwise the artwork (OLED and White only).</summary>
@@ -334,8 +362,33 @@ public partial class IslandWindow : Window
         double w = Capsule.ActualWidth, h = Capsule.ActualHeight;
         if (w <= 0 || h <= 0) return;
         double bt = Capsule.BorderThickness.Left;
-        double r = Math.Max(0, Math.Min(h / 2, 28) - bt);
-        CapsuleContent.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(0, w - 2 * bt), Math.Max(0, h - 2 * bt)), r, r);
+        double outer = Math.Min(h / 2, 28);
+        double r = Math.Max(0, outer - bt);
+        double iw = Math.Max(0, w - 2 * bt), ih = Math.Max(0, h - 2 * bt);
+        if (_settings.Shape == 1)
+        {
+            // notch: flat top glued to the screen edge, only the bottom corners are round
+            Capsule.CornerRadius = new CornerRadius(0, 0, outer, outer);
+            var geo = new StreamGeometry();
+            using (var g = geo.Open())
+            {
+                g.BeginFigure(new Point(0, 0), true, true);
+                g.LineTo(new Point(iw, 0), false, false);
+                g.LineTo(new Point(iw, Math.Max(0, ih - r)), false, false);
+                g.ArcTo(new Point(Math.Max(0, iw - r), ih), new Size(r, r), 0, false, SweepDirection.Clockwise, false, false);
+                g.LineTo(new Point(Math.Min(iw, r), ih), false, false);
+                g.ArcTo(new Point(0, Math.Max(0, ih - r)), new Size(r, r), 0, false, SweepDirection.Clockwise, false, false);
+            }
+            geo.Freeze();
+            CapsuleContent.Clip = geo;
+        }
+        else
+        {
+            Capsule.CornerRadius = new CornerRadius(outer);
+            CapsuleContent.Clip = new RectangleGeometry(new Rect(0, 0, iw, ih), r, r);
+        }
+        DropRing.CornerRadius = Capsule.CornerRadius;
+        if (CapsuleProgress.Visibility == Visibility.Visible) UpdateCapsuleProgress();
     }
 
     /// <summary>After a size animation: repaint the whole layered window so no pixels of the larger size remain.</summary>
@@ -346,14 +399,14 @@ public partial class IslandWindow : Window
         Dispatcher.InvokeAsync(() => WindowRoot.Opacity = 1, DispatcherPriority.Render);
     }
 
-    // ================= Hover: minimal → detailed (peek) → expanded
+    // ================= Hover → expanded (one movement)
 
     private void Capsule_MouseEnter(object sender, MouseEventArgs e)
     {
         _collapseTimer.Stop();
         _unpeekTimer.Stop();
-        if (_activity != null) DismissActivity(openCalendar: true);
-        if (_expanded) return;
+        if (_notice != null && _notice.HoverOpens) { var n = _notice; DismissNotice(); n.Click?.Invoke(); }
+        if (_expanded || HoldsHover) return;
         _expandTimer.Start();
         Scale(RootScale, 1.02, 150);   // anticipation
     }
@@ -361,7 +414,6 @@ public partial class IslandWindow : Window
     private void Capsule_MouseLeave(object sender, MouseEventArgs e)
     {
         _expandTimer.Stop();
-        _deepTimer.Stop();
         if (!_expanded)
         {
             Scale(RootScale, 1, 150);
@@ -406,8 +458,11 @@ public partial class IslandWindow : Window
 
     private bool DetailedCollapsed => !_settings.MinimalIdle || _peek;
 
+    /// <summary>A notification in the capsule keeps it from opening on hover; it is clicked instead.</summary>
+    private bool HoldsHover => _notice != null && !_notice.HoverOpens;
+
     private (double W, double H) CollapsedSize =>
-        _activity != null ? (ActivityW, DetailH)
+        _notice != null ? (_notice.Width, DetailH)
         : DetailedCollapsed ? (_track != null ? PlayingW : IdleW, DetailH)
         : (_track != null ? MinPlayW : MinIdleW, MinH);
 
@@ -417,7 +472,6 @@ public partial class IslandWindow : Window
     {
         _expanded = true;
         _expandTimer.Stop();
-        _deepTimer.Stop();
         HideFirstRunHint();
         Scale(RootScale, 1, 120);
         var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.25 };
@@ -452,7 +506,7 @@ public partial class IslandWindow : Window
         UpdateStrip();
         UpdateTint(300);
         UpdateWeatherFx();
-        ShowPendingReminder();
+        ShowQueuedNotice();
     }
 
     private void AnimateSize(double w, double h, int ms, IEasingFunction ease)
@@ -485,7 +539,7 @@ public partial class IslandWindow : Window
     /// <summary>Collapsed content: reminder activity › playing › idle, minimal or detailed. Animates the size.</summary>
     private void UpdateCollapsedRow()
     {
-        FrameworkElement want = _activity != null ? ActivityRow
+        FrameworkElement want = _notice != null ? ActivityRow
             : DetailedCollapsed ? (_track != null ? PlayingRow : IdleRow)
             : (_track != null ? MinPlayRow : MinClock);
         foreach (var row in new FrameworkElement[] { ActivityRow, PlayingRow, IdleRow, MinPlayRow, MinClock })
@@ -506,6 +560,7 @@ public partial class IslandWindow : Window
                 row.Visibility = Visibility.Collapsed;
             }
         }
+        UpdateCapsuleLine();
         if (_expanded) return;
         var (w, h) = CollapsedSize;
         if (Math.Abs(Capsule.Width - w) > 0.5 || Math.Abs(Capsule.Height - h) > 0.5)
@@ -516,10 +571,23 @@ public partial class IslandWindow : Window
 
     private void Capsule_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_expanded || !_settings.ClickControl || _track == null) return;
+        if (_expanded) return;
+        if (_notice?.Click is { } click && !_notice.HoverOpens)
+        {
+            DismissNotice();
+            click();
+            e.Handled = true;
+            return;
+        }
+        if (_timerRunning && (_track == null || !_settings.ClickControl))
+        {
+            TimerTogglePause();   // click on a running timer = pause / resume
+            e.Handled = true;
+            return;
+        }
+        if (!_settings.ClickControl || _track == null) return;
         // a click is not a hover: do not open the island because of it
         _expandTimer.Stop();
-        _deepTimer.Stop();
         if (e.ClickCount >= 2)
         {
             _clickTimer.Stop();
@@ -553,7 +621,6 @@ public partial class IslandWindow : Window
         _osdTimer.Start();
         // scrolling is not hovering: restart the hover delay
         if (_expandTimer.IsEnabled) { _expandTimer.Stop(); _expandTimer.Start(); }
-        if (_deepTimer.IsEnabled) { _deepTimer.Stop(); _deepTimer.Start(); }
         e.Handled = true;
     }
 
@@ -671,29 +738,49 @@ public partial class IslandWindow : Window
 
     // ================= 50 ms tick
 
+    private string _clockShown = "";
+
     private void UiTick()
     {
         var local = DateTime.Now;
-        string hm = local.ToString("HH:mm", Ru);
-        if (MiniClock.Text != hm)
-        {
-            MiniClock.Text = hm; IdleClock.Text = hm; BigClock.Text = hm; SmallClock.Text = hm;
-            MinClock.Text = hm; MinMusicClock.Text = hm;
-            DateText.Text = Capital(local.ToString("dddd, d MMMM", Ru));
-            IdleDate.Text = Capital(local.ToString("ddd, d MMM", Ru).Replace(".", ""));
-        }
-
+        UpdateClocks(force: false);
         MusicTick(local);
 
         if (local.Second != _lastSecond)
         {
             _lastSecond = local.Second;
             CalendarSecondTick(local);
+            TasksSecondTick(local);
+            TimerSecondTick();
+            NoticeSecondTick(local);
             WeatherSecondTick();
         }
     }
 
-    private static string Capital(string s) => s.Length > 0 ? char.ToUpper(s[0], Ru) + s.Substring(1) : s;
+    /// <summary>Clocks, dates and the idle capsule's second line (greeting, weather or the next event).</summary>
+    private void UpdateClocks(bool force)
+    {
+        var local = DateTime.Now;
+        string hm = Loc.Clock(local, _settings.Clock24);
+        if (!force && _clockShown == hm + Loc.Culture.Name) return;
+        _clockShown = hm + Loc.Culture.Name;
+        BigClock.Text = hm; SmallClock.Text = hm; MinClock.Text = hm; MinMusicClock.Text = hm;
+        if (!_timerRunning) { MiniClock.Text = hm; IdleClock.Text = hm; }
+        DateText.Text = Capital(local.ToString(Loc.T("fmt.date.long"), Ru));
+        IdleDate.Text = Greeting(local) ?? Capital(local.ToString(Loc.T("fmt.date.long"), Ru));
+        UpdateIdleLine();
+    }
+
+    /// <summary>"Доброй ночи" 00–06, "Доброе утро" 06–10, otherwise null (the date is shown).</summary>
+    private string? Greeting(DateTime t)
+    {
+        if (!_settings.Greetings) return null;
+        if (t.Hour < 6) return Loc.T("greet.night");
+        if (t.Hour < 10) return Loc.T("greet.morning");
+        return null;
+    }
+
+    private static string Capital(string s) => Loc.Cap(s);
 
     // ================= Keyboard (calendar form fields)
 
@@ -739,6 +826,13 @@ public partial class IslandWindow : Window
         if (e.VerticalChange == 0 || sender is not ScrollViewer sv) return;
         ThinScrollBars.Flash(sv, _scrollHide);
     }
+
+    /// <summary>
+    /// Wheel scrolling done by hand and clamped: at the end of a list nothing moves any more and the event never
+    /// reaches anything else (it used to make the content jump to the top, SPEC-v1.4 §8).
+    /// </summary>
+    private void ThinScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e) =>
+        ThinScrollBars.Wheel((ScrollViewer)sender, e);
 
     // ================= Quick settings tab: theme cards, lyrics toggle, "all settings"
 
@@ -799,6 +893,7 @@ public partial class IslandWindow : Window
     {
         if (_loading) return;
         _settings.ShowLyrics = !_settings.ShowLyrics;
+        _shownIndex = int.MinValue;
         _settings.Save();
         RefreshToggles();
         if (_settings.ShowLyrics && _track != null) UpdateLyricsSource(_track);
@@ -825,6 +920,25 @@ public partial class IslandWindow : Window
         RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
     }
 
+    // ================= Language: everything built from code is rebuilt (XAML follows by itself)
+
+    private void OnLanguageChanged()
+    {
+        if (_loading) return;
+        _shownKey = "";              // retitle the track texts
+        ShowTrack(_track);
+        UpdateClocks(force: true);
+        BuildThemeCards();
+        BuildFormReminders();
+        RefreshFormChips();
+        RenderCalendar(0);
+        RenderTasks();
+        InitTimer();
+        ShowWeather();
+        Capsule.ContextMenu = App.BuildMenu();
+        UpdateHomeEvent();
+    }
+
     // ================= Live weather background
 
     /// <summary>Settings → About (Shift+click on the version): show a given animation regardless of the real weather.</summary>
@@ -838,11 +952,16 @@ public partial class IslandWindow : Window
     {
         WeatherFx.Ink = _theme.IsLight ? Color.FromRgb(0x5E, 0x7A, 0x99) : Colors.White;
         WeatherFx.Tint = _theme.IsGradient ? _theme.Accent : null;
+        WeatherFx.Calm = _settings.LiveWeather == 1;
 
         var w = CurrentWeather;
         WeatherFx.Fx kind = _previewFx ?? (w != null ? WeatherFx.ForCode(w.Code, w.IsDay) : WeatherFx.Fx.None);
         int rain = _previewFx != null ? 80 : w != null ? WeatherFx.RainAmount(w.Code) : 80;
-        bool show = _expanded && _page == "weather" && _settings.AnimationSpeed > 0 && kind != WeatherFx.Fx.None
+        WeatherFx.Partly = _previewFx == null && w != null && w.Code is 1 or 2;
+        WeatherFx.Night = _previewFx == null && w != null && !w.IsDay;
+        WeatherFx.WindMs = w != null ? WeatherService.ToMs(w.Wind, w.WindUnit) : 3;
+        WeatherFx.WindFromDeg = w?.WindDir ?? 270;
+        bool show = _expanded && _page == "weather" && _settings.AnimationSpeed > 0 && _settings.LiveWeather > 0 && kind != WeatherFx.Fx.None
                     && (_previewFx != null || _settings.CurrentPlace != null);
 
         if (show)

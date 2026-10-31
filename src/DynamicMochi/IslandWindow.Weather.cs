@@ -21,6 +21,7 @@ public partial class IslandWindow
     private WeatherData? _weather;
     private string _weatherFor = "";          // place + unit the data belongs to
     private bool _weatherBusy;
+    private bool _idleWeatherReady;
     private DateTime _weatherTriedUtc = DateTime.MinValue;
 
     private void InitWeather()
@@ -31,7 +32,7 @@ public partial class IslandWindow
     }
 
     private string WeatherKey(Place p) =>
-        string.Format(CultureInfo.InvariantCulture, "{0:F4},{1:F4},{2},{3}", p.Latitude, p.Longitude, _settings.Fahrenheit, _settings.WindKmh);
+        string.Format(CultureInfo.InvariantCulture, "{0:F4},{1:F4},{2},{3}", p.Latitude, p.Longitude, _settings.Fahrenheit, _settings.WindUnit);
 
     /// <summary>Forecast for the current place and units, or null.</summary>
     private WeatherData? CurrentWeather =>
@@ -43,7 +44,7 @@ public partial class IslandWindow
         _weather = null;
         _weatherFor = "";
         if (place == null) return;
-        _weather = WeatherService.Cached(place, _settings.Fahrenheit, _settings.WindKmh);
+        _weather = WeatherService.Cached(place, _settings.Fahrenheit, _settings.WindUnit);
         _weatherFor = WeatherKey(place);
     }
 
@@ -68,7 +69,7 @@ public partial class IslandWindow
         string key = WeatherKey(place);
         try
         {
-            var data = await WeatherService.FetchAsync(place, _settings.Fahrenheit, _settings.WindKmh);
+            var data = await WeatherService.FetchAsync(place, _settings.Fahrenheit, _settings.WindUnit);
             if (_settings.CurrentPlace != null && WeatherKey(_settings.CurrentPlace) == key)
             {
                 _weather = data;
@@ -117,15 +118,16 @@ public partial class IslandWindow
         var w = has && _weatherFor == WeatherKey(place!) ? _weather : null;
         if (place == null || w == null)
         {
-            IdleWeather.Visibility = Visibility.Collapsed;
+            _idleWeatherReady = false;
+            UpdateIdleLine();
             HomeWeather.Visibility = Visibility.Collapsed;
             if (place != null)
             {
                 WeatherPlace.Text = place.Name;
-                WeatherUpdated.Text = _weatherBusy ? "обновляю…" : "нет данных";
+                WeatherUpdated.Text = Loc.T(_weatherBusy ? "weather.updating" : "weather.nodata");
                 NowTemp.Text = "—";
-                NowDesc.Text = _weatherBusy ? "Загружаю погоду" : "Не удалось загрузить";
-                NowFeels.Text = NowWind.Text = NowHumidity.Text = "";
+                NowDesc.Text = Loc.T(_weatherBusy ? "weather.loading" : "weather.failed");
+                NowFeels.Text = NowWind.Text = NowHumidity.Text = NowGusts.Text = "";
                 HourPanel.Children.Clear();
                 DaysPanel.Children.Clear();
             }
@@ -135,29 +137,51 @@ public partial class IslandWindow
 
         WeatherPlace.Text = place.Name;
         var fetchedLocal = w.FetchedUtc.ToLocalTime();
-        WeatherUpdated.Text = _weatherBusy ? "обновляю…" :
-            "обновлено " + (fetchedLocal.Date == DateTime.Today ? fetchedLocal.ToString("HH:mm", Ru) : fetchedLocal.ToString("d MMM HH:mm", Ru));
+        WeatherUpdated.Text = _weatherBusy ? Loc.T("weather.updating") :
+            Loc.F("weather.updated", (fetchedLocal.Date == DateTime.Today ? "" : fetchedLocal.ToString(Loc.English ? "MMM d " : "d MMM ", Ru)) + Loc.Clock(fetchedLocal, _settings.Clock24));
 
         NowIcon.Icon = WeatherIcon.For(w.Code, w.IsDay);
         NowTemp.Text = WeatherService.Temp(w.Temp);
         NowDesc.Text = WeatherService.Describe(w.Code);
-        NowFeels.Text = "Ощущается " + WeatherService.Temp(w.Feels);
-        NowWind.Text = "Ветер " + Math.Round(w.Wind).ToString("0", CultureInfo.InvariantCulture) + (_settings.WindKmh ? " км/ч" : " м/с");
-        NowHumidity.Text = "Влажность " + w.Humidity + "%";
+        NowFeels.Text = Loc.F("weather.feels", WeatherService.Temp(w.Feels));
+        NowHumidity.Text = Loc.F("weather.humidity", w.Humidity);
+        ShowWind(w);
 
         RenderHours(w);
         RenderDays(w);
 
-        // idle capsule and Home
+        // idle capsule ("Облачно · +16°") and Home
         IdleWeatherIcon.Icon = NowIcon.Icon;
-        IdleTemp.Text = NowTemp.Text;
-        IdleWeather.Visibility = _settings.WeatherInCapsule ? Visibility.Visible : Visibility.Collapsed;
+        IdleTemp.Text = WeatherService.Describe(w.Code) + " · " + NowTemp.Text;
+        _idleWeatherReady = true;
+        UpdateIdleLine();
         HomeWeatherIcon.Icon = NowIcon.Icon;
         HomeWeatherText.Text = NowTemp.Text + " · " + place.Name.Split(',')[0].Trim();
         HomeWeather.Visibility = Visibility.Visible;
 
         UpdateTint(300);
         UpdateWeatherFx();
+    }
+
+    /// <summary>"Ветер 4 м/с · СЗ" with an arrow turned to where it blows, "порывы до 9 м/с · умеренный" below (SPEC-v1.4 §16).</summary>
+    private void ShowWind(WeatherData w)
+    {
+        string unit = WeatherService.UnitLabel(w.WindUnit);
+        double ms = WeatherService.ToMs(w.Wind, w.WindUnit);
+        string speed = Math.Round(w.Wind).ToString("0", CultureInfo.InvariantCulture);
+        if (ms < 0.3)
+        {
+            NowWind.Text = Loc.T("wind.calm");
+            WindArrow.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            NowWind.Text = Loc.F("wind.now", speed, unit, WeatherService.Compass(w.WindDir));
+            WindArrow.Visibility = Visibility.Visible;
+            WindArrowAngle.Angle = w.WindDir + 180;   // the arrow points where the wind goes
+        }
+        NowWind.SetResourceReference(TextBlock.ForegroundProperty, ms >= 8 ? "AccentBrush" : "SubBrush");
+        NowGusts.Text = Loc.F("wind.gusts", Math.Round(w.Gusts).ToString("0", CultureInfo.InvariantCulture), unit, WeatherService.Beaufort(ms));
     }
 
     private void RenderHours(WeatherData w)
@@ -167,7 +191,7 @@ public partial class IslandWindow
         {
             var h = w.Hours[i];
             var col = new StackPanel { Width = 42 };
-            var time = new TextBlock { Text = i == 0 ? "Сейчас" : h.Time.ToString("HH", Ru), FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
+            var time = new TextBlock { Text = i == 0 ? Loc.T("weather.now") : h.Time.ToString(_settings.Clock24 ? "HH" : "h tt", Ru), FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
             time.SetResourceReference(TextBlock.ForegroundProperty, "FaintBrush");
             var icon = new WeatherIcon { Icon = WeatherIcon.For(h.Code, h.IsDay), Width = 18, Height = 18, Margin = new Thickness(0, 4, 0, 2) };
             icon.SetResourceReference(WeatherIcon.ForegroundProperty, "FgBrush");
@@ -180,6 +204,11 @@ public partial class IslandWindow
             var precip = new TextBlock { FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, Foreground = new SolidColorBrush(RainBlue), Height = 13 };
             if (h.Precip >= 30) precip.Text = h.Precip + "%";
             col.Children.Add(precip);
+            // wind every hour, accent from 8 m/s
+            var wind = new TextBlock { Text = Math.Round(h.Wind).ToString("0", CultureInfo.InvariantCulture), FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, ToolTip = WeatherService.UnitLabel(w.WindUnit) };
+            Typography.SetNumeralAlignment(wind, FontNumeralAlignment.Tabular);
+            wind.SetResourceReference(TextBlock.ForegroundProperty, WeatherService.ToMs(h.Wind, w.WindUnit) >= 8 ? "AccentBrush" : "FaintBrush");
+            col.Children.Add(wind);
 
             var plate = new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(0, 5, 0, 3), Margin = new Thickness(0, 0, 4, 0), Child = col };
             if (i == 0) plate.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush");
@@ -204,10 +233,11 @@ public partial class IslandWindow
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
 
             var name = new TextBlock
             {
-                Text = d.Date == today ? "Сегодня" : Capital(d.Date.ToString("ddd", Ru).Replace(".", "")),
+                Text = d.Date == today ? Loc.T("day.today") : Capital(d.Date.ToString("ddd", Ru).Replace(".", "")),
                 FontSize = 13, VerticalAlignment = VerticalAlignment.Center,
             };
             name.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
@@ -248,6 +278,17 @@ public partial class IslandWindow
             max.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
             Grid.SetColumn(max, 4);
             row.Children.Add(max);
+
+            // max wind of the day
+            var windMax = new TextBlock
+            {
+                Text = Math.Round(d.WindMax).ToString("0", CultureInfo.InvariantCulture) + " " + WeatherService.UnitLabel(w.WindUnit),
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            Typography.SetNumeralAlignment(windMax, FontNumeralAlignment.Tabular);
+            windMax.SetResourceReference(TextBlock.ForegroundProperty, WeatherService.ToMs(d.WindMax, w.WindUnit) >= 8 ? "AccentBrush" : "FaintBrush");
+            Grid.SetColumn(windMax, 5);
+            row.Children.Add(windMax);
 
             DaysPanel.Children.Add(row);
         }
@@ -320,7 +361,7 @@ public partial class IslandWindow
 
     private void WeatherSettingsChanged()
     {
-        string key = $"{_settings.Fahrenheit}{_settings.WindKmh}|{_settings.PlaceIndex}|{string.Join(";", _settings.Places.Select(p => WeatherKey(p)))}";
+        string key = $"{_settings.Fahrenheit}{_settings.WindUnit}|{_settings.PlaceIndex}|{string.Join(";", _settings.Places.Select(p => WeatherKey(p)))}";
         if (key != _unitsKey) { _unitsKey = key; PlacesChanged(); }
         else ShowWeather();
     }

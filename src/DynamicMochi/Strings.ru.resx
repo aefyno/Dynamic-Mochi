@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Interface strings (ru). Keys are shared with Strings.en.resx; XAML uses {DynamicResource T.key}, code Loc.T("key"). -->
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="beaufort" xml:space="preserve"><value>штиль,тихий,лёгкий,слабый,умеренный,свежий,сильный,крепкий,очень крепкий,шторм,сильный шторм,жестокий шторм,ураган</value></data>
+  <data name="cal.allday" xml:space="preserve"><value>Весь день</value></data>
+  <data name="cal.event" xml:space="preserve"><value>Событие</value></data>
+  <data name="cal.form.title" xml:space="preserve"><value>Название</value></data>
+  <data name="cal.mode.calendar" xml:space="preserve"><value>Календарь</value></data>
+  <data name="cal.mode.tasks" xml:space="preserve"><value>Задачи</value></data>
+  <data name="cal.mode.timer" xml:space="preserve"><value>Таймер</value></data>
+  <data name="cal.nextmonth" xml:space="preserve"><value>Следующий месяц</value></data>
+  <data name="cal.noevents" xml:space="preserve"><value>Нет событий</value></data>
+  <data name="cal.prevmonth" xml:space="preserve"><value>Предыдущий месяц</value></data>
+  <data name="cal.remind" xml:space="preserve"><value>Напомнить</value></data>
+  <data name="cal.today" xml:space="preserve"><value>Сегодня</value></data>
+  <data name="common.cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="common.delete" xml:space="preserve"><value>Удалить</value></data>
+  <data name="common.delete.sure" xml:space="preserve"><value>Точно удалить?</value></data>
+  <data name="common.quit" xml:space="preserve"><value>Выйти</value></data>
+  <data name="common.save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="compass" xml:space="preserve"><value>С,СВ,В,ЮВ,Ю,ЮЗ,З,СЗ</value></data>
+  <data name="day.today" xml:space="preserve"><value>Сегодня</value></data>
+  <data name="day.tomorrow" xml:space="preserve"><value>Завтра</value></data>
+  <data name="day.yesterday" xml:space="preserve"><value>Вчера</value></data>
+  <data name="dlg.city.box" xml:space="preserve"><value>Город, район или улица</value></data>
+  <data name="dlg.district" xml:space="preserve"><value>Уточнить район</value></data>
+  <data name="dlg.district.box" xml:space="preserve"><value>Район или улица</value></data>
+  <data name="dlg.district.sub" xml:space="preserve"><value>Необязательно. Погода будет точнее для твоего места в городе {0}.</value></data>
+  <data name="dlg.done" xml:space="preserve"><value>Готово</value></data>
+  <data name="dlg.loc.denied" xml:space="preserve"><value>Разреши доступ к местоположению в Параметрах Windows (Конфиденциальность → Расположение).</value></data>
+  <data name="dlg.loc.failed" xml:space="preserve"><value>Не получилось определить место. Найди город вручную.</value></data>
+  <data name="dlg.locate" xml:space="preserve"><value>Определить автоматически</value></data>
+  <data name="dlg.locating" xml:space="preserve"><value>Определяю место…</value></data>
+  <data name="dlg.locsettings" xml:space="preserve"><value>Открыть параметры расположения</value></data>
+  <data name="dlg.neterror" xml:space="preserve"><value>Не получилось найти. Проверь интернет.</value></data>
+  <data name="dlg.none" xml:space="preserve"><value>Ничего не нашлось</value></data>
+  <data name="dlg.none.city" xml:space="preserve"><value>Ничего не нашлось в этом городе</value></data>
+  <data name="dlg.skip" xml:space="preserve"><value>Пропустить</value></data>
+  <data name="firstrun" xml:space="preserve"><value>Наведи на меня, чтобы открыть</value></data>
+  <data name="fmt.date.long" xml:space="preserve"><value>dddd, d MMMM</value></data>
+  <data name="fmt.date.short" xml:space="preserve"><value>ddd, d MMM</value></data>
+  <data name="greet.morning" xml:space="preserve"><value>Доброе утро</value></data>
+  <data name="greet.night" xml:space="preserve"><value>Доброй ночи</value></data>
+  <data name="music.hint" xml:space="preserve"><value>Включи музыку в любом плеере</value></data>
+  <data name="music.next" xml:space="preserve"><value>Следующий</value></data>
+  <data name="music.none" xml:space="preserve"><value>Ничего не играет</value></data>
+  <data name="music.pause" xml:space="preserve"><value>Пауза</value></data>
+  <data name="music.paused" xml:space="preserve"><value>На паузе</value></data>
+  <data name="music.play" xml:space="preserve"><value>Играть</value></data>
+  <data name="music.playing" xml:space="preserve"><value>Играет</value></data>
+  <data name="music.playing.in" xml:space="preserve"><value>Играет в {0}</value></data>
+  <data name="music.prev" xml:space="preserve"><value>Предыдущий</value></data>
+  <data name="music.silence" xml:space="preserve"><value>Тишина</value></data>
+  <data name="place.city" xml:space="preserve"><value>город</value></data>
+  <data name="place.district" xml:space="preserve"><value>район</value></data>
+  <data name="place.micro" xml:space="preserve"><value>микрорайон</value></data>
+  <data name="place.place" xml:space="preserve"><value>место</value></data>
+  <data name="place.street" xml:space="preserve"><value>улица</value></data>
+  <data name="place.village" xml:space="preserve"><value>посёлок</value></data>
+  <data name="qs.all" xml:space="preserve"><value>Все настройки</value></data>
+  <data name="qs.appearance" xml:space="preserve"><value>ВНЕШНИЙ ВИД</value></data>
+  <data name="qs.lyrics" xml:space="preserve"><value>Текст песни</value></data>
+  <data name="qs.music" xml:space="preserve"><value>МУЗЫКА</value></data>
+  <data name="rem.15" xml:space="preserve"><value>За 15 мин</value></data>
+  <data name="rem.5" xml:space="preserve"><value>За 5 мин</value></data>
+  <data name="rem.60" xml:space="preserve"><value>За 1 час</value></data>
+  <data name="rem.at" xml:space="preserve"><value>В момент</value></data>
+  <data name="rem.none" xml:space="preserve"><value>Нет</value></data>
+  <data name="set.about" xml:space="preserve"><value>О программе</value></data>
+  <data name="set.anim" xml:space="preserve"><value>Анимации</value></data>
+  <data name="set.anim.d" xml:space="preserve"><value>Скорость всех анимаций. «Без анимаций» также выключает живой фон погоды.</value></data>
+  <data name="set.anim.fast" xml:space="preserve"><value>Быстрые</value></data>
+  <data name="set.anim.normal" xml:space="preserve"><value>Обычные</value></data>
+  <data name="set.anim.off" xml:space="preserve"><value>Без анимаций</value></data>
+  <data name="set.appearance" xml:space="preserve"><value>Внешний вид</value></data>
+  <data name="set.autostart" xml:space="preserve"><value>Запускать вместе с Windows</value></data>
+  <data name="set.autostart.d" xml:space="preserve"><value>Остров появится сразу после входа в систему.</value></data>
+  <data name="set.calendar" xml:space="preserve"><value>Календарь</value></data>
+  <data name="set.click" xml:space="preserve"><value>Управление кликом</value></data>
+  <data name="set.click.d" xml:space="preserve"><value>Клик по свёрнутому острову ставит на паузу, двойной клик включает следующий трек. Колёсико меняет громкость всегда.</value></data>
+  <data name="set.clock24" xml:space="preserve"><value>Формат времени</value></data>
+  <data name="set.clock24.d" xml:space="preserve"><value>24-часовой или 12-часовой.</value></data>
+  <data name="set.clockfont" xml:space="preserve"><value>Часы</value></data>
+  <data name="set.clockfont.d" xml:space="preserve"><value>Шрифт часов, таймера и крупных цифр. Цифры всегда одной ширины.</value></data>
+  <data name="set.clockmusic" xml:space="preserve"><value>Часы при музыке</value></data>
+  <data name="set.clockmusic.d" xml:space="preserve"><value>Показывать время рядом с треком в свёрнутом острове (в обоих видах).</value></data>
+  <data name="set.eq" xml:space="preserve"><value>Показывать эквалайзер</value></data>
+  <data name="set.eq.d" xml:space="preserve"><value>Прыгающие полоски рядом с треком.</value></data>
+  <data name="set.font" xml:space="preserve"><value>Текст</value></data>
+  <data name="set.font.d" xml:space="preserve"><value>Шрифт всего острова и этого окна.</value></data>
+  <data name="set.font.system" xml:space="preserve"><value>Системный</value></data>
+  <data name="set.fonts" xml:space="preserve"><value>Шрифты</value></data>
+  <data name="set.fullscreen" xml:space="preserve"><value>Прятать в полноэкранных приложениях</value></data>
+  <data name="set.fullscreen.d" xml:space="preserve"><value>Игры, видео на весь экран, презентации: остров уезжает вверх и возвращается сам.</value></data>
+  <data name="set.general" xml:space="preserve"><value>Общее</value></data>
+  <data name="set.github.d" xml:space="preserve"><value>Исходный код, сборки и баг-репорты.</value></data>
+  <data name="set.greetings" xml:space="preserve"><value>Приветствия</value></data>
+  <data name="set.greetings.d" xml:space="preserve"><value>Ночью «Доброй ночи», утром до 10:00 «Доброе утро» вместо даты.</value></data>
+  <data name="set.hotkey" xml:space="preserve"><value>Горячая клавиша</value></data>
+  <data name="set.hotkey.d" xml:space="preserve"><value>Раскрыть или свернуть остров с клавиатуры. Нажми на сочетание, чтобы задать своё.</value></data>
+  <data name="set.hotkey.need" xml:space="preserve"><value>Нужен Ctrl, Alt или Win</value></data>
+  <data name="set.hotkey.press" xml:space="preserve"><value>Нажми сочетание…</value></data>
+  <data name="set.hotkey.taken" xml:space="preserve"><value>занято другой программой</value></data>
+  <data name="set.idle" xml:space="preserve"><value>Вид в покое</value></data>
+  <data name="set.idle.detailed" xml:space="preserve"><value>Подробный</value></data>
+  <data name="set.idle.minimal" xml:space="preserve"><value>Минимальный</value></data>
+  <data name="set.idle.view" xml:space="preserve"><value>Вид в покое</value></data>
+  <data name="set.idle.view.d" xml:space="preserve"><value>Подробный: крупные часы, дата, погода, название трека и строка песни. Минимальный: только часы или обложка с эквалайзером.</value></data>
+  <data name="set.language" xml:space="preserve"><value>Язык</value></data>
+  <data name="set.language.d" xml:space="preserve"><value>Язык интерфейса, дат и погоды. Меняется сразу, без перезапуска.</value></data>
+  <data name="set.language.system" xml:space="preserve"><value>Как в Windows</value></data>
+  <data name="set.live" xml:space="preserve"><value>Живой фон</value></data>
+  <data name="set.live.calm" xml:space="preserve"><value>Спокойный</value></data>
+  <data name="set.live.d" xml:space="preserve"><value>Анимация погоды на вкладке Погода. Спокойный — без теней облаков и линий ветра.</value></data>
+  <data name="set.live.full" xml:space="preserve"><value>Полный</value></data>
+  <data name="set.live.noanim" xml:space="preserve"><value>Анимации выключены (Внешний вид → Анимации).</value></data>
+  <data name="set.live.off" xml:space="preserve"><value>Выкл</value></data>
+  <data name="set.logs" xml:space="preserve"><value>Папка с логами</value></data>
+  <data name="set.logs.d" xml:space="preserve"><value>log.txt, настройки, события, задачи и кеш погоды.</value></data>
+  <data name="set.logs.open" xml:space="preserve"><value>Открыть папку</value></data>
+  <data name="set.lyrics" xml:space="preserve"><value>Текст песни</value></data>
+  <data name="set.lyrics.artist" xml:space="preserve"><value>Исполнитель, если текста нет</value></data>
+  <data name="set.lyrics.artist.d" xml:space="preserve"><value>Вторая строка в острове показывает исполнителя, пока текст не найден.</value></data>
+  <data name="set.lyrics.backing" xml:space="preserve"><value>Показывать бэк-вокал</value></data>
+  <data name="set.lyrics.backing.d" xml:space="preserve"><value>Слова в скобках — меньше и курсивом.</value></data>
+  <data name="set.lyrics.in" xml:space="preserve"><value>В острове</value></data>
+  <data name="set.lyrics.none" xml:space="preserve"><value>Нигде</value></data>
+  <data name="set.lyrics.off" xml:space="preserve"><value>Текст песни выключен (Где показывать → Нигде).</value></data>
+  <data name="set.lyrics.onlyin" xml:space="preserve"><value>Только когда текст показывается «В острове».</value></data>
+  <data name="set.lyrics.place" xml:space="preserve"><value>Где показывать</value></data>
+  <data name="set.lyrics.place.d" xml:space="preserve"><value>Строка текста с lrclib.net: в самом острове (под названием трека) или отдельной капсулой под ним.</value></data>
+  <data name="set.lyrics.size" xml:space="preserve"><value>Размер текста</value></data>
+  <data name="set.lyrics.size.d" xml:space="preserve"><value>Размер строки текста песни.</value></data>
+  <data name="set.lyrics.under" xml:space="preserve"><value>Под островом</value></data>
+  <data name="set.monitor" xml:space="preserve"><value>Монитор</value></data>
+  <data name="set.monitor.d" xml:space="preserve"><value>На каком экране показывать остров.</value></data>
+  <data name="set.monitor.main" xml:space="preserve"><value>Основной</value></data>
+  <data name="set.monitor.n" xml:space="preserve"><value>Монитор {0}</value></data>
+  <data name="set.monitor.one" xml:space="preserve"><value>Подключён один монитор.</value></data>
+  <data name="set.music" xml:space="preserve"><value>Музыка</value></data>
+  <data name="set.nextevent" xml:space="preserve"><value>Ближайшее событие</value></data>
+  <data name="set.nextevent.d" xml:space="preserve"><value>На Главной и в свёрнутом острове: «14:30 · Созвон».</value></data>
+  <data name="set.nothing" xml:space="preserve"><value>Ничего не нашлось</value></data>
+  <data name="set.notifications" xml:space="preserve"><value>Уведомления</value></data>
+  <data name="set.notify" xml:space="preserve"><value>Уведомления в острове</value></data>
+  <data name="set.notify.access" xml:space="preserve"><value>Доступ к уведомлениям</value></data>
+  <data name="set.notify.access.ask" xml:space="preserve"><value>Windows спросит разрешение один раз. Остров читает только уведомления выбранных приложений.</value></data>
+  <data name="set.notify.access.denied" xml:space="preserve"><value>Доступ запрещён. Его можно включить в Параметрах Windows → Конфиденциальность → Уведомления.</value></data>
+  <data name="set.notify.access.identity" xml:space="preserve"><value>Windows даёт доступ к чужим уведомлениям только приложениям, установленным пакетом (MSIX). Эта сборка — один exe, поэтому уведомления Telegram и Discord пока недоступны; скриншоты работают.</value></data>
+  <data name="set.notify.access.ok" xml:space="preserve"><value>Разрешён. Остров видит новые уведомления Telegram и Discord.</value></data>
+  <data name="set.notify.allow" xml:space="preserve"><value>Разрешить</value></data>
+  <data name="set.notify.chats" xml:space="preserve"><value>Мессенджеры</value></data>
+  <data name="set.notify.d" xml:space="preserve"><value>Сообщения и скриншоты ненадолго появляются в капсуле.</value></data>
+  <data name="set.notify.dc" xml:space="preserve"><value>Имя канала или отправителя и начало сообщения.</value></data>
+  <data name="set.notify.identity.short" xml:space="preserve"><value>Нужна установка пакетом MSIX, см. «Доступ к уведомлениям».</value></data>
+  <data name="set.notify.off" xml:space="preserve"><value>Уведомления в острове выключены.</value></data>
+  <data name="set.notify.open" xml:space="preserve"><value>Открыть параметры</value></data>
+  <data name="set.notify.tg" xml:space="preserve"><value>Имя, аватарка и начало сообщения.</value></data>
+  <data name="set.offset" xml:space="preserve"><value>Отступ сверху</value></data>
+  <data name="set.offset.d" xml:space="preserve"><value>Расстояние от верхнего края экрана до острова.</value></data>
+  <data name="set.offset.notch" xml:space="preserve"><value>Недоступно в форме «Нотч»: он всегда приклеен к краю экрана.</value></data>
+  <data name="set.onlydetailed" xml:space="preserve"><value>Работает только в подробном виде (Общее → Вид в покое).</value></data>
+  <data name="set.open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="set.places" xml:space="preserve"><value>Места</value></data>
+  <data name="set.places.add" xml:space="preserve"><value>Добавить место</value></data>
+  <data name="set.places.empty" xml:space="preserve"><value>Пока ни одного места. Добавь город, и погода появится в острове.</value></data>
+  <data name="set.places.full" xml:space="preserve"><value>Можно сохранить до 3 мест</value></data>
+  <data name="set.quit" xml:space="preserve"><value>Выйти из Dynamic Mochi</value></data>
+  <data name="set.reminders" xml:space="preserve"><value>Напоминания в острове</value></data>
+  <data name="set.reminders.d" xml:space="preserve"><value>В момент напоминания остров показывает событие или задачу.</value></data>
+  <data name="set.remlen" xml:space="preserve"><value>Длительность напоминания</value></data>
+  <data name="set.remlen.d" xml:space="preserve"><value>Сколько секунд напоминание держится в острове.</value></data>
+  <data name="set.remlen.off" xml:space="preserve"><value>Напоминания выключены.</value></data>
+  <data name="set.reset" xml:space="preserve"><value>Сбросить все настройки</value></data>
+  <data name="set.reset.d" xml:space="preserve"><value>Вернуть настройки как после установки. Сохранённые места тоже сбросятся.</value></data>
+  <data name="set.reset.do" xml:space="preserve"><value>Сбросить</value></data>
+  <data name="set.reset.sure" xml:space="preserve"><value>Точно сбросить?</value></data>
+  <data name="set.saved" xml:space="preserve"><value>Изменения сохраняются сразу</value></data>
+  <data name="set.search" xml:space="preserve"><value>Поиск по настройкам</value></data>
+  <data name="set.sec" xml:space="preserve"><value>{0} с</value></data>
+  <data name="set.shape" xml:space="preserve"><value>Форма</value></data>
+  <data name="set.shape.d" xml:space="preserve"><value>Айленд — таблетка с отступом от края. Нотч — как вырез у MacBook: приклеен к верхнему краю экрана.</value></data>
+  <data name="set.shape.island" xml:space="preserve"><value>Айленд</value></data>
+  <data name="set.shape.notch" xml:space="preserve"><value>Нотч</value></data>
+  <data name="set.shots" xml:space="preserve"><value>Уведомление о скриншоте</value></data>
+  <data name="set.shots.d" xml:space="preserve"><value>После Win+Shift+S или PrtScn — превью в острове. Клик открывает редактор.</value></data>
+  <data name="set.shots.group" xml:space="preserve"><value>Скриншоты</value></data>
+  <data name="set.size" xml:space="preserve"><value>Размер острова</value></data>
+  <data name="set.size.compact" xml:space="preserve"><value>Компактный</value></data>
+  <data name="set.size.d" xml:space="preserve"><value>Компактный, обычный или крупный; ползунок для точной настройки. Остров меняется сразу.</value></data>
+  <data name="set.size.large" xml:space="preserve"><value>Крупный</value></data>
+  <data name="set.size.normal" xml:space="preserve"><value>Обычный</value></data>
+  <data name="set.system" xml:space="preserve"><value>Система</value></data>
+  <data name="set.temp" xml:space="preserve"><value>Температура</value></data>
+  <data name="set.temp.d" xml:space="preserve"><value>Единицы температуры.</value></data>
+  <data name="set.tests" xml:space="preserve"><value>Для тестов</value></data>
+  <data name="set.theme" xml:space="preserve"><value>Тема</value></data>
+  <data name="set.tint" xml:space="preserve"><value>Цветное пятно от обложки</value></data>
+  <data name="set.tint.colored" xml:space="preserve"><value>Только в темах OLED и Белая: у цветных тем свой цвет.</value></data>
+  <data name="set.tint.d" xml:space="preserve"><value>Мягкий отсвет цвета обложки в углу острова.</value></data>
+  <data name="set.version" xml:space="preserve"><value>Версия</value></data>
+  <data name="set.volume" xml:space="preserve"><value>Громкость</value></data>
+  <data name="set.volume.d" xml:space="preserve"><value>«Только плеера» меняет громкость того приложения, где играет музыка. «Системная» меняет общую громкость Windows.</value></data>
+  <data name="set.volume.player" xml:space="preserve"><value>Только плеера</value></data>
+  <data name="set.volume.system" xml:space="preserve"><value>Системная</value></data>
+  <data name="set.wcapsule" xml:space="preserve"><value>Погода в свёрнутом острове</value></data>
+  <data name="set.wcapsule.d" xml:space="preserve"><value>Иконка, описание и температура рядом с часами.</value></data>
+  <data name="set.weather" xml:space="preserve"><value>Погода</value></data>
+  <data name="set.week" xml:space="preserve"><value>Неделя начинается с</value></data>
+  <data name="set.week.d" xml:space="preserve"><value>Первый день недели в сетке месяца.</value></data>
+  <data name="set.week.mon" xml:space="preserve"><value>Пн</value></data>
+  <data name="set.week.sun" xml:space="preserve"><value>Вс</value></data>
+  <data name="set.wind" xml:space="preserve"><value>Ветер</value></data>
+  <data name="set.wind.d" xml:space="preserve"><value>Единицы скорости ветра. Меняются сразу везде.</value></data>
+  <data name="set.window" xml:space="preserve"><value>Dynamic Mochi — настройки</value></data>
+  <data name="set.wp.clouds" xml:space="preserve"><value>Облака</value></data>
+  <data name="set.wp.drizzle" xml:space="preserve"><value>Морось</value></data>
+  <data name="set.wp.fog" xml:space="preserve"><value>Туман</value></data>
+  <data name="set.wp.night" xml:space="preserve"><value>Ночь</value></data>
+  <data name="set.wp.off" xml:space="preserve"><value>Выкл</value></data>
+  <data name="set.wp.rain" xml:space="preserve"><value>Дождь</value></data>
+  <data name="set.wp.snow" xml:space="preserve"><value>Снег</value></data>
+  <data name="set.wp.storm" xml:space="preserve"><value>Гроза</value></data>
+  <data name="set.wp.sun" xml:space="preserve"><value>Ясно</value></data>
+  <data name="set.wpreview" xml:space="preserve"><value>Предпросмотр погоды</value></data>
+  <data name="set.wpreview.d" xml:space="preserve"><value>Показать живой фон без реальной погоды. Открой вкладку Погода в острове.</value></data>
+  <data name="shot.sub" xml:space="preserve"><value>Нажми, чтобы открыть в редакторе</value></data>
+  <data name="shot.title" xml:space="preserve"><value>Скриншот скопирован</value></data>
+  <data name="src.player" xml:space="preserve"><value>Медиаплеер</value></data>
+  <data name="src.yandex" xml:space="preserve"><value>Яндекс Музыка</value></data>
+  <data name="tab.calendar" xml:space="preserve"><value>Календарь</value></data>
+  <data name="tab.home" xml:space="preserve"><value>Главная</value></data>
+  <data name="tab.music" xml:space="preserve"><value>Музыка</value></data>
+  <data name="tab.settings" xml:space="preserve"><value>Настройки</value></data>
+  <data name="tab.weather" xml:space="preserve"><value>Погода</value></data>
+  <data name="tasks.delete" xml:space="preserve"><value>Удалить задачу</value></data>
+  <data name="tasks.done" xml:space="preserve"><value>Выполненные · {0}</value></data>
+  <data name="tasks.empty" xml:space="preserve"><value>Задач пока нет</value></data>
+  <data name="tasks.new" xml:space="preserve"><value>Новая задача</value></data>
+  <data name="tasks.remind" xml:space="preserve"><value>Задача</value></data>
+  <data name="tasks.time" xml:space="preserve"><value>Напомнить</value></data>
+  <data name="tasks.time.tip" xml:space="preserve"><value>Время напоминания, например 18:30 (необязательно)</value></data>
+  <data name="theme.blue" xml:space="preserve"><value>Синяя</value></data>
+  <data name="theme.green" xml:space="preserve"><value>Зелёная</value></data>
+  <data name="theme.oled" xml:space="preserve"><value>OLED</value></data>
+  <data name="theme.orange" xml:space="preserve"><value>Оранжевая</value></data>
+  <data name="theme.red" xml:space="preserve"><value>Красная</value></data>
+  <data name="theme.white" xml:space="preserve"><value>Белая</value></data>
+  <data name="timer.click" xml:space="preserve"><value>клик — пауза</value></data>
+  <data name="timer.custom" xml:space="preserve"><value>Своё время</value></data>
+  <data name="timer.done" xml:space="preserve"><value>Таймер {0} — готово</value></data>
+  <data name="timer.input" xml:space="preserve"><value>мин или мм:сс</value></data>
+  <data name="timer.min" xml:space="preserve"><value>{0} мин</value></data>
+  <data name="timer.pause" xml:space="preserve"><value>Пауза</value></data>
+  <data name="timer.paused" xml:space="preserve"><value>на паузе</value></data>
+  <data name="timer.quick" xml:space="preserve"><value>Быстрый старт</value></data>
+  <data name="timer.ready" xml:space="preserve"><value>готов к старту</value></data>
+  <data name="timer.resume" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="timer.running" xml:space="preserve"><value>идёт</value></data>
+  <data name="timer.start" xml:space="preserve"><value>Старт</value></data>
+  <data name="timer.stop" xml:space="preserve"><value>Стоп</value></data>
+  <data name="unit.kmh" xml:space="preserve"><value>км/ч</value></data>
+  <data name="unit.kn" xml:space="preserve"><value>уз</value></data>
+  <data name="unit.mph" xml:space="preserve"><value>mph</value></data>
+  <data name="unit.ms" xml:space="preserve"><value>м/с</value></data>
+  <data name="weather.choose" xml:space="preserve"><value>Выбрать</value></data>
+  <data name="weather.choose.hint" xml:space="preserve"><value>Выбери город, чтобы видеть погоду</value></data>
+  <data name="weather.failed" xml:space="preserve"><value>Не удалось загрузить</value></data>
+  <data name="weather.feels" xml:space="preserve"><value>Ощущается {0}</value></data>
+  <data name="weather.humidity" xml:space="preserve"><value>Влажность {0}%</value></data>
+  <data name="weather.loading" xml:space="preserve"><value>Загружаю погоду</value></data>
+  <data name="weather.nodata" xml:space="preserve"><value>нет данных</value></data>
+  <data name="weather.now" xml:space="preserve"><value>Сейчас</value></data>
+  <data name="weather.place.tip" xml:space="preserve"><value>Выбрать место</value></data>
+  <data name="weather.refresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="weather.updated" xml:space="preserve"><value>обновлено {0}</value></data>
+  <data name="weather.updating" xml:space="preserve"><value>обновляю…</value></data>
+  <data name="weekdays.short" xml:space="preserve"><value>Вс,Пн,Вт,Ср,Чт,Пт,Сб</value></data>
+  <data name="when.hours" xml:space="preserve"><value>через {0} ч</value></data>
+  <data name="when.min" xml:space="preserve"><value>через {0} мин</value></data>
+  <data name="when.now" xml:space="preserve"><value>сейчас</value></data>
+  <data name="when.today" xml:space="preserve"><value>сегодня</value></data>
+  <data name="wind.arrow.tip" xml:space="preserve"><value>Стрелка показывает, куда дует ветер</value></data>
+  <data name="wind.calm" xml:space="preserve"><value>Штиль</value></data>
+  <data name="wind.gusts" xml:space="preserve"><value>порывы до {0} {1} · {2}</value></data>
+  <data name="wind.now" xml:space="preserve"><value>Ветер {0} {1} · {2}</value></data>
+  <data name="wmo.0" xml:space="preserve"><value>Ясно</value></data>
+  <data name="wmo.1" xml:space="preserve"><value>Преимущественно ясно</value></data>
+  <data name="wmo.2" xml:space="preserve"><value>Переменная облачность</value></data>
+  <data name="wmo.3" xml:space="preserve"><value>Облачно</value></data>
+  <data name="wmo.45" xml:space="preserve"><value>Туман</value></data>
+  <data name="wmo.48" xml:space="preserve"><value>Изморозь и туман</value></data>
+  <data name="wmo.51" xml:space="preserve"><value>Слабая морось</value></data>
+  <data name="wmo.53" xml:space="preserve"><value>Морось</value></data>
+  <data name="wmo.55" xml:space="preserve"><value>Сильная морось</value></data>
+  <data name="wmo.56" xml:space="preserve"><value>Ледяная морось</value></data>
+  <data name="wmo.57" xml:space="preserve"><value>Ледяная морось</value></data>
+  <data name="wmo.61" xml:space="preserve"><value>Небольшой дождь</value></data>
+  <data name="wmo.63" xml:space="preserve"><value>Дождь</value></data>
+  <data name="wmo.65" xml:space="preserve"><value>Сильный дождь</value></data>
+  <data name="wmo.66" xml:space="preserve"><value>Ледяной дождь</value></data>
+  <data name="wmo.67" xml:space="preserve"><value>Ледяной дождь</value></data>
+  <data name="wmo.71" xml:space="preserve"><value>Небольшой снег</value></data>
+  <data name="wmo.73" xml:space="preserve"><value>Снег</value></data>
+  <data name="wmo.75" xml:space="preserve"><value>Сильный снег</value></data>
+  <data name="wmo.77" xml:space="preserve"><value>Снежная крупа</value></data>
+  <data name="wmo.80" xml:space="preserve"><value>Небольшой ливень</value></data>
+  <data name="wmo.81" xml:space="preserve"><value>Ливень</value></data>
+  <data name="wmo.82" xml:space="preserve"><value>Сильный ливень</value></data>
+  <data name="wmo.85" xml:space="preserve"><value>Небольшой снегопад</value></data>
+  <data name="wmo.86" xml:space="preserve"><value>Снегопад</value></data>
+  <data name="wmo.95" xml:space="preserve"><value>Гроза</value></data>
+  <data name="wmo.96" xml:space="preserve"><value>Гроза с градом</value></data>
+  <data name="wmo.99" xml:space="preserve"><value>Гроза с градом</value></data>
+</root>

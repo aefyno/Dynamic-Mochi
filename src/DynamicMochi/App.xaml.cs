@@ -31,7 +31,10 @@ public partial class App : Application
         DispatcherUnhandledException += OnUnhandled;
         base.OnStartup(e);
 
+        Log.Write($"start: Dynamic Mochi {Version}");
+        Loc.Apply(Settings.Language);
         ApplyFont(Settings.Font);
+        ApplyClockFont(Settings.ClockFont);
         var window = new IslandWindow();
         Island = window;
         MainWindow = window;
@@ -47,8 +50,12 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    /// <summary>"1.4.0".</summary>
+    public static string Version => typeof(App).Assembly.GetName().Version?.ToString(3) ?? "";
+
     protected override void OnExit(ExitEventArgs e)
     {
+        Settings.Save();
         _tray?.Dispose();
         _single?.Dispose();
         base.OnExit(e);
@@ -86,8 +93,8 @@ public partial class App : Application
     public static ContextMenu BuildMenu()
     {
         var menu = new ContextMenu();
-        menu.Items.Add(Item("Все настройки", "", () => ShowSettings()));
-        var quit = Item("Выйти", "", Quit);
+        menu.Items.Add(Item(Loc.T("qs.all"), "\uE713", () => ShowSettings()));
+        var quit = Item(Loc.T("common.quit"), "\uE711", Quit);
         quit.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x45, 0x3A));
         menu.Items.Add(quit);
         return menu;
@@ -113,28 +120,33 @@ public partial class App : Application
 
     private static readonly Uri FontBase = new("pack://application:,,,/");
 
-    public static void ApplyFont(string name)
+    /// <summary>Interface text font: Manrope (default), Onest, Inter, Golos Text or the system font.</summary>
+    public static void ApplyFont(string name) => Current.Resources["UiFont"] = TextFace(name);
+
+    /// <summary>Clock font (clocks, big temperature, timer): Unbounded SemiBold (default), Manrope ExtraBold, Onest Bold, JetBrains Mono, Inter Display.</summary>
+    public static void ApplyClockFont(string name)
     {
-        FontFamily ui, display;
-        switch (name)
-        {
-            case "Segoe UI Variable":
-                ui = new FontFamily("Segoe UI Variable Text, Segoe UI");
-                display = new FontFamily("Segoe UI Variable Display, Segoe UI");
-                break;
-            case "Manrope":
-            case "Onest":
-                ui = new FontFamily(FontBase, $"./Assets/Fonts/#{name}, Segoe UI");
-                display = ui;
-                break;
-            default:
-                ui = new FontFamily(FontBase, "./Assets/Fonts/#Inter, Segoe UI");
-                display = new FontFamily(FontBase, "./Assets/Fonts/#Inter Display, ./Assets/Fonts/#Inter, Segoe UI");
-                break;
-        }
-        Current.Resources["UiFont"] = ui;
-        Current.Resources["DisplayFont"] = display;
+        var (family, weight) = ClockFace(name);
+        Current.Resources["DisplayFont"] = family;
+        Current.Resources["DisplayWeight"] = weight;
     }
+
+    public static (FontFamily Family, FontWeight Weight) ClockFace(string name) => name switch
+    {
+        "Manrope" => (new FontFamily(FontBase, "./Assets/Fonts/#Manrope, Segoe UI"), FontWeights.ExtraBold),
+        "Onest" => (new FontFamily(FontBase, "./Assets/Fonts/#Onest, Segoe UI"), FontWeights.Bold),
+        "JetBrains Mono" => (new FontFamily(FontBase, "./Assets/Fonts/#JetBrains Mono, Consolas"), FontWeights.Bold),
+        "Inter Display" => (new FontFamily(FontBase, "./Assets/Fonts/#Inter Display, ./Assets/Fonts/#Inter, Segoe UI"), FontWeights.SemiBold),
+        _ => (new FontFamily(FontBase, "./Assets/Fonts/#Unbounded, Segoe UI"), FontWeights.SemiBold),
+    };
+
+    /// <summary>Interface font for an option (also the preview in the settings window).</summary>
+    public static FontFamily TextFace(string name) => name switch
+    {
+        "System" => new FontFamily("Segoe UI Variable Text, Segoe UI"),
+        "Inter" or "Onest" or "Golos Text" => new FontFamily(FontBase, $"./Assets/Fonts/#{name}, Segoe UI"),
+        _ => new FontFamily(FontBase, "./Assets/Fonts/#Manrope, Segoe UI"),
+    };
 
     // ================= Theme brushes (shared by both windows)
 
@@ -157,13 +169,22 @@ public partial class App : Application
         // opaque plates: menus and the settings window fallback (no Mica)
         var menu = t.IsLight ? Colors.White : t.IsGradient ? Blend(t.GradMid, Color.FromRgb(0x1C, 0x1C, 0x1E), 0.55) : Color.FromRgb(0x1C, 0x1C, 0x1E);
         SetBrush("MenuBrush", menu, animate);
-        var window = t.IsLight ? Color.FromRgb(0xF3, 0xF3, 0xF5) : t.IsGradient ? Blend(t.GradMid, Colors.Black, 0.5) : Color.FromRgb(0x10, 0x10, 0x12);
-        SetBrush("WindowBrush", window, animate);
+        // settings window: the same gradient as the island in coloured themes (colour flowing into black)
+        if (t.IsGradient)
+        {
+            var g = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
+            g.GradientStops.Add(new GradientStop(t.GradTop, 0));
+            g.GradientStops.Add(new GradientStop(t.GradMid, 0.55));
+            g.GradientStops.Add(new GradientStop(Colors.Black, 1));
+            g.Freeze();
+            Current.Resources["WindowBrush"] = g;
+        }
+        else SetBrush("WindowBrush", t.IsLight ? Color.FromRgb(0xF3, 0xF3, 0xF5) : Color.FromRgb(0x10, 0x10, 0x12), animate);
     }
 
     private static void SetBrush(string key, Color to, bool animate)
     {
-        Color from = Current.Resources[key] is SolidColorBrush old ? old.Color : to;
+        Color from = Current.Resources[key] is SolidColorBrush old ? old.Color : to;   // a gradient before: no animation
         var b = new SolidColorBrush(animate ? from : to);
         if (animate && from != to)
             b.BeginAnimation(SolidColorBrush.ColorProperty, new ColorAnimation(from, to, TimeSpan.FromMilliseconds(250 * Math.Max(0.01, Settings.AnimationSpeed))));

@@ -31,6 +31,20 @@ public static class ThinScrollBars
         timer.Stop();
         timer.Start();
     }
+
+    /// <summary>
+    /// Mouse wheel handled by hand and clamped to [0, end]: at the end of a list nothing happens any more
+    /// (no jump to the top, the wheel never leaks to the capsule). Sliders inside keep their own wheel.
+    /// </summary>
+    public static void Wheel(ScrollViewer sv, MouseWheelEventArgs e)
+    {
+        for (var d = e.OriginalSource as DependencyObject; d != null && d != sv; d = d is Visual ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+            if (d is Slider2) return;
+        e.Handled = true;
+        if (sv.ScrollableHeight <= 0) return;
+        double to = Math.Clamp(sv.VerticalOffset - e.Delta * 0.5, 0, sv.ScrollableHeight);
+        if (Math.Abs(to - sv.VerticalOffset) > 0.1) sv.ScrollToVerticalOffset(to);
+    }
 }
 
 /// <summary>Theme preview cards (island quick settings and the settings window).</summary>
@@ -41,7 +55,7 @@ public static class ThemeCards
         double miniHeight = Math.Round(miniWidth * 0.31);
         var bg = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
         bg.GradientStops.Add(new GradientStop(theme.GradTop, 0));
-        bg.GradientStops.Add(new GradientStop(theme.GradMid, 0.5));
+        bg.GradientStops.Add(new GradientStop(theme.GradMid, 0.55));
         bg.GradientStops.Add(new GradientStop(theme.GradEnd, 1));
         var mini = new Border
         {
@@ -67,7 +81,7 @@ public static class ThemeCards
         inner.Children.Add(bars);
         mini.Child = inner;
 
-        var label = new TextBlock { Text = theme.Name, FontSize = height > 80 ? 13 : 12, HorizontalAlignment = HorizontalAlignment.Center };
+        var label = new TextBlock { Text = Themes.Title(theme), FontSize = height > 80 ? 13 : 12, HorizontalAlignment = HorizontalAlignment.Center };
         label.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");
 
         var check = new Border

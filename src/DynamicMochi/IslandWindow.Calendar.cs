@@ -17,7 +17,7 @@ public partial class IslandWindow
     private static readonly string[] EventColors = { "#FF453A", "#FF9F0A", "#FFD60A", "#30D158", "#0A84FF", "#BF5AF2" };
     private static readonly (int? Minutes, string Label)[] ReminderOptions =
     {
-        (null, "Нет"), (0, "В момент"), (5, "За 5 мин"), (15, "За 15 мин"), (60, "За 1 час"),
+        (null, "rem.none"), (0, "rem.at"), (5, "rem.5"), (15, "rem.15"), (60, "rem.60"),
     };
 
     private readonly ICalendarSource _calendar = new LocalCalendar();
@@ -41,10 +41,6 @@ public partial class IslandWindow
 
     // reminders
     private readonly HashSet<string> _fired = new();
-    private CalendarEvent? _activity;
-    private DateTime _activityUntil;
-    private CalendarEvent? _pendingReminder;
-    private DateTime _pendingAt;
 
     private void InitCalendar()
     {
@@ -75,9 +71,8 @@ public partial class IslandWindow
         TodayButton.Visibility = currentMonth ? Visibility.Collapsed : Visibility.Visible;
 
         WeekdaysRow.Children.Clear();
-        string[] names = MondayFirst
-            ? new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" }
-            : new[] { "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" };
+        var all = Loc.T("weekdays.short").Split(',');   // Sunday first
+        string[] names = MondayFirst ? all.Skip(1).Append(all[0]).ToArray() : all;
         foreach (var n in names)
         {
             var t = new TextBlock { Text = n, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
@@ -231,10 +226,10 @@ public partial class IslandWindow
 
     private string DayName(DateTime day)
     {
-        if (day == _calToday) return "Сегодня";
-        if (day == _calToday.AddDays(1)) return "Завтра";
-        if (day == _calToday.AddDays(-1)) return "Вчера";
-        return Capital(day.ToString("dddd, d MMMM", Ru));
+        if (day == _calToday) return Loc.T("day.today");
+        if (day == _calToday.AddDays(1)) return Loc.T("day.tomorrow");
+        if (day == _calToday.AddDays(-1)) return Loc.T("day.yesterday");
+        return Capital(day.ToString(Loc.T("fmt.date.long"), Ru));
     }
 
     private void RenderDay()
@@ -270,7 +265,7 @@ public partial class IslandWindow
         grid.Children.Add(new Border { Width = 3, CornerRadius = new CornerRadius(1.5), Margin = new Thickness(8, 8, 0, 8), Background = new SolidColorBrush(Hex(ev.Color)) });
 
         var text = new StackPanel { Margin = new Thickness(10, 6, 10, 7) };
-        var time = new TextBlock { Text = ev.AllDay ? "Весь день" : ev.Start.ToString("HH:mm", Ru), FontSize = 12 };
+        var time = new TextBlock { Text = ev.AllDay ? Loc.T("cal.allday") : Loc.Clock(ev.Start, _settings.Clock24), FontSize = 12 };
         Typography.SetNumeralAlignment(time, FontNumeralAlignment.Tabular);
         time.SetResourceReference(TextBlock.ForegroundProperty, "SubBrush");
         var title = new MarqueeText { Text = ev.Title, FontSize = 13, Height = 18, AutoPlay = false };
@@ -312,7 +307,7 @@ public partial class IslandWindow
         _formColor = _editing.Color;
         _formReminder = _editing.ReminderMinutes;
         _deleteArmed = false;
-        FormDelete.Content = "Удалить";
+        FormDelete.Content = Loc.T("common.delete");
         FormDelete.Visibility = _isNew ? Visibility.Collapsed : Visibility.Visible;
         FormTitle.Text = _editing.Title;
         FormTime.Text = _editing.Start.ToString("HH:mm", CultureInfo.InvariantCulture);
@@ -359,7 +354,7 @@ public partial class IslandWindow
 
     private void UpdateFormDate()
     {
-        FormDate.Text = Capital(_formDate.ToString("ddd, d MMM", Ru).Replace(".", ""));
+        FormDate.Text = Capital(_formDate.ToString(Loc.T("fmt.date.short"), Ru).Replace(".", ""));
         FormTime.Visibility = _formAllDay ? Visibility.Hidden : Visibility.Visible;
     }
 
@@ -397,7 +392,7 @@ public partial class IslandWindow
         _reminderChips.Clear();
         foreach (var (minutes, label) in ReminderOptions)
         {
-            var chip = new Button { Style = (Style)FindResource("Chip"), Content = label };
+            var chip = new Button { Style = (Style)FindResource("Chip"), Content = Loc.T(label) };
             int? m = minutes;
             chip.Click += (_, _) => { _formReminder = m; RefreshFormChips(); };
             FormReminders.Children.Add(chip);
@@ -456,7 +451,7 @@ public partial class IslandWindow
         if (!_deleteArmed)
         {
             _deleteArmed = true;
-            FormDelete.Content = "Точно удалить?";
+            FormDelete.Content = Loc.T("common.delete.sure");
             return;
         }
         _calendar.Delete(_editing.Id);
@@ -509,7 +504,7 @@ public partial class IslandWindow
         var next = today.FirstOrDefault(e => !e.AllDay && e.Start >= now.AddMinutes(-5)) ?? today.FirstOrDefault(e => e.AllDay);
         if (next == null) { HomeEvent.Visibility = Visibility.Collapsed; return; }
         HomeEventDot.Fill = new SolidColorBrush(Hex(next.Color));
-        HomeEventText.Text = (next.AllDay ? "Весь день" : next.Start.ToString("HH:mm", Ru)) + " · " + next.Title;
+        HomeEventText.Text = (next.AllDay ? Loc.T("cal.allday") : Loc.Clock(next.Start, _settings.Clock24)) + " · " + next.Title;
         HomeEvent.Visibility = Visibility.Visible;
     }
 
@@ -543,67 +538,45 @@ public partial class IslandWindow
             if (!_fired.Add(ReminderKey(ev))) continue;
             Log.Write($"reminder: {ev.Title} at {ev.Start:HH:mm}");
             if (!_settings.Reminders) continue;
-            if (_expanded) { _pendingReminder = ev; _pendingAt = now; }
-            else ShowActivity(ev);
-        }
-
-        if (_activity != null)
-        {
-            if (now > _activityUntil) DismissActivity(openCalendar: false);
-            else ActivityWhen.Text = WhenText(_activity, now);
+            ShowActivity(ev);
         }
     }
 
-    private static string WhenText(CalendarEvent ev, DateTime now)
+    private static string WhenText(CalendarEvent ev, DateTime now) => WhenText(ev.AllDay, ev.Start, now);
+
+    private static string WhenText(bool allDay, DateTime start, DateTime now)
     {
-        if (ev.AllDay) return "сегодня";
-        var left = ev.Start - now;
-        if (left.TotalSeconds <= 30) return "сейчас";
+        if (allDay) return Loc.T("when.today");
+        var left = start - now;
+        if (left.TotalSeconds <= 30) return Loc.T("when.now");
         int minutes = (int)Math.Ceiling(left.TotalMinutes);
-        if (minutes < 60) return $"через {minutes} мин";
+        if (minutes < 60) return Loc.F("when.min", minutes);
         int hours = (int)Math.Round(left.TotalHours);
-        return $"через {hours} ч";
+        return Loc.F("when.hours", hours);
     }
 
+    /// <summary>Reminder as a live activity; hovering opens the calendar on that event.</summary>
     private void ShowActivity(CalendarEvent ev)
     {
-        _activity = ev;
-        _activityUntil = DateTime.Now.AddSeconds(_settings.ReminderSeconds);
-        ActivityDot.Fill = new SolidColorBrush(Hex(ev.Color));
-        ActivityTitle.SetForegroundResource("FgBrush");
-        ActivityTitle.Text = ev.Title;
-        ActivityWhen.Text = WhenText(ev, DateTime.Now);
-        UpdateCollapsedRow();
-        UpdateStrip();
-        // a short pulse so the change is noticed
-        var pulse = new DoubleAnimationUsingKeyFrames();
-        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1.04, Dur(160), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1, Dur(420), new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.4 }));
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, pulse);
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, pulse);
-    }
-
-    private void DismissActivity(bool openCalendar)
-    {
-        var ev = _activity;
-        _activity = null;
-        UpdateCollapsedRow();
-        UpdateStrip();
-        if (openCalendar && ev != null)
+        var id = ev.Id;
+        ShowNotice(new Notice
         {
-            _highlightId = ev.Id;
-            _calSelected = ev.Start.Date;
-            _calMonth = new DateTime(ev.Start.Year, ev.Start.Month, 1);
-            RenderCalendar(0);
-            SelectTab("calendar", animate: false);
-        }
-    }
-
-    private void ShowPendingReminder()
-    {
-        if (_pendingReminder == null) return;
-        var ev = _pendingReminder;
-        _pendingReminder = null;
-        if (DateTime.Now - _pendingAt < TimeSpan.FromMinutes(2)) ShowActivity(ev);
+            Kind = "reminder",
+            Title = ev.Title,
+            Dot = Hex(ev.Color),
+            Right = () => WhenText(ev, DateTime.Now),
+            Width = 380,
+            Duration = TimeSpan.FromSeconds(_settings.ReminderSeconds),
+            HoverOpens = true,
+            Click = () =>
+            {
+                _highlightId = id;
+                _calSelected = ev.Start.Date;
+                _calMonth = new DateTime(ev.Start.Year, ev.Start.Month, 1);
+                SetCalMode("calendar");
+                RenderCalendar(0);
+                SelectTab("calendar", animate: false);
+            },
+        });
     }
 }

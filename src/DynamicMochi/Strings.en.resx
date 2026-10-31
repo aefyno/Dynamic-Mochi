@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Interface strings (en). Keys are shared with Strings.ru.resx; XAML uses {DynamicResource T.key}, code Loc.T("key"). -->
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="beaufort" xml:space="preserve"><value>calm,light air,light breeze,gentle breeze,moderate breeze,fresh breeze,strong breeze,near gale,gale,strong gale,storm,violent storm,hurricane</value></data>
+  <data name="cal.allday" xml:space="preserve"><value>All day</value></data>
+  <data name="cal.event" xml:space="preserve"><value>Event</value></data>
+  <data name="cal.form.title" xml:space="preserve"><value>Title</value></data>
+  <data name="cal.mode.calendar" xml:space="preserve"><value>Calendar</value></data>
+  <data name="cal.mode.tasks" xml:space="preserve"><value>Tasks</value></data>
+  <data name="cal.mode.timer" xml:space="preserve"><value>Timer</value></data>
+  <data name="cal.nextmonth" xml:space="preserve"><value>Next month</value></data>
+  <data name="cal.noevents" xml:space="preserve"><value>No events</value></data>
+  <data name="cal.prevmonth" xml:space="preserve"><value>Previous month</value></data>
+  <data name="cal.remind" xml:space="preserve"><value>Remind</value></data>
+  <data name="cal.today" xml:space="preserve"><value>Today</value></data>
+  <data name="common.cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="common.delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="common.delete.sure" xml:space="preserve"><value>Delete for sure?</value></data>
+  <data name="common.quit" xml:space="preserve"><value>Quit</value></data>
+  <data name="common.save" xml:space="preserve"><value>Save</value></data>
+  <data name="compass" xml:space="preserve"><value>N,NE,E,SE,S,SW,W,NW</value></data>
+  <data name="day.today" xml:space="preserve"><value>Today</value></data>
+  <data name="day.tomorrow" xml:space="preserve"><value>Tomorrow</value></data>
+  <data name="day.yesterday" xml:space="preserve"><value>Yesterday</value></data>
+  <data name="dlg.city.box" xml:space="preserve"><value>City, district or street</value></data>
+  <data name="dlg.district" xml:space="preserve"><value>Pick a district</value></data>
+  <data name="dlg.district.box" xml:space="preserve"><value>District or street</value></data>
+  <data name="dlg.district.sub" xml:space="preserve"><value>Optional. The weather will be more precise for your spot in {0}.</value></data>
+  <data name="dlg.done" xml:space="preserve"><value>Done</value></data>
+  <data name="dlg.loc.denied" xml:space="preserve"><value>Allow location access in Windows Settings (Privacy → Location).</value></data>
+  <data name="dlg.loc.failed" xml:space="preserve"><value>Could not detect the location. Search for the city instead.</value></data>
+  <data name="dlg.locate" xml:space="preserve"><value>Detect automatically</value></data>
+  <data name="dlg.locating" xml:space="preserve"><value>Detecting the location…</value></data>
+  <data name="dlg.locsettings" xml:space="preserve"><value>Open location settings</value></data>
+  <data name="dlg.neterror" xml:space="preserve"><value>Search failed. Check the internet connection.</value></data>
+  <data name="dlg.none" xml:space="preserve"><value>Nothing found</value></data>
+  <data name="dlg.none.city" xml:space="preserve"><value>Nothing found in this city</value></data>
+  <data name="dlg.skip" xml:space="preserve"><value>Skip</value></data>
+  <data name="firstrun" xml:space="preserve"><value>Hover over me to open</value></data>
+  <data name="fmt.date.long" xml:space="preserve"><value>dddd, MMMM d</value></data>
+  <data name="fmt.date.short" xml:space="preserve"><value>ddd, MMM d</value></data>
+  <data name="greet.morning" xml:space="preserve"><value>Good morning</value></data>
+  <data name="greet.night" xml:space="preserve"><value>Good night</value></data>
+  <data name="music.hint" xml:space="preserve"><value>Play music in any player</value></data>
+  <data name="music.next" xml:space="preserve"><value>Next</value></data>
+  <data name="music.none" xml:space="preserve"><value>Nothing is playing</value></data>
+  <data name="music.pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="music.paused" xml:space="preserve"><value>Paused</value></data>
+  <data name="music.play" xml:space="preserve"><value>Play</value></data>
+  <data name="music.playing" xml:space="preserve"><value>Playing</value></data>
+  <data name="music.playing.in" xml:space="preserve"><value>Playing in {0}</value></data>
+  <data name="music.prev" xml:space="preserve"><value>Previous</value></data>
+  <data name="music.silence" xml:space="preserve"><value>Quiet</value></data>
+  <data name="place.city" xml:space="preserve"><value>city</value></data>
+  <data name="place.district" xml:space="preserve"><value>district</value></data>
+  <data name="place.micro" xml:space="preserve"><value>neighbourhood</value></data>
+  <data name="place.place" xml:space="preserve"><value>place</value></data>
+  <data name="place.street" xml:space="preserve"><value>street</value></data>
+  <data name="place.village" xml:space="preserve"><value>village</value></data>
+  <data name="qs.all" xml:space="preserve"><value>All settings</value></data>
+  <data name="qs.appearance" xml:space="preserve"><value>APPEARANCE</value></data>
+  <data name="qs.lyrics" xml:space="preserve"><value>Song lyrics</value></data>
+  <data name="qs.music" xml:space="preserve"><value>MUSIC</value></data>
+  <data name="rem.15" xml:space="preserve"><value>15 min before</value></data>
+  <data name="rem.5" xml:space="preserve"><value>5 min before</value></data>
+  <data name="rem.60" xml:space="preserve"><value>1 hour before</value></data>
+  <data name="rem.at" xml:space="preserve"><value>At start</value></data>
+  <data name="rem.none" xml:space="preserve"><value>None</value></data>
+  <data name="set.about" xml:space="preserve"><value>About</value></data>
+  <data name="set.anim" xml:space="preserve"><value>Animations</value></data>
+  <data name="set.anim.d" xml:space="preserve"><value>Speed of all animations. “Off” also turns off the live weather background.</value></data>
+  <data name="set.anim.fast" xml:space="preserve"><value>Fast</value></data>
+  <data name="set.anim.normal" xml:space="preserve"><value>Normal</value></data>
+  <data name="set.anim.off" xml:space="preserve"><value>Off</value></data>
+  <data name="set.appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="set.autostart" xml:space="preserve"><value>Start with Windows</value></data>
+  <data name="set.autostart.d" xml:space="preserve"><value>The island appears right after you sign in.</value></data>
+  <data name="set.calendar" xml:space="preserve"><value>Calendar</value></data>
+  <data name="set.click" xml:space="preserve"><value>Click control</value></data>
+  <data name="set.click.d" xml:space="preserve"><value>A click on the collapsed island pauses, a double click plays the next track. The wheel always changes the volume.</value></data>
+  <data name="set.clock24" xml:space="preserve"><value>Time format</value></data>
+  <data name="set.clock24.d" xml:space="preserve"><value>24-hour or 12-hour.</value></data>
+  <data name="set.clockfont" xml:space="preserve"><value>Clock</value></data>
+  <data name="set.clockfont.d" xml:space="preserve"><value>Font of the clock, the timer and big numbers. Digits always have the same width.</value></data>
+  <data name="set.clockmusic" xml:space="preserve"><value>Clock with music</value></data>
+  <data name="set.clockmusic.d" xml:space="preserve"><value>Show the time next to the track in the collapsed island (both views).</value></data>
+  <data name="set.eq" xml:space="preserve"><value>Show the equalizer</value></data>
+  <data name="set.eq.d" xml:space="preserve"><value>Bouncing bars next to the track.</value></data>
+  <data name="set.font" xml:space="preserve"><value>Text</value></data>
+  <data name="set.font.d" xml:space="preserve"><value>Font of the island and this window.</value></data>
+  <data name="set.font.system" xml:space="preserve"><value>System</value></data>
+  <data name="set.fonts" xml:space="preserve"><value>Fonts</value></data>
+  <data name="set.fullscreen" xml:space="preserve"><value>Hide in full-screen apps</value></data>
+  <data name="set.fullscreen.d" xml:space="preserve"><value>Games, full-screen video, slides: the island slides up and comes back by itself.</value></data>
+  <data name="set.general" xml:space="preserve"><value>General</value></data>
+  <data name="set.github.d" xml:space="preserve"><value>Source code, builds and bug reports.</value></data>
+  <data name="set.greetings" xml:space="preserve"><value>Greetings</value></data>
+  <data name="set.greetings.d" xml:space="preserve"><value>At night “Good night”, until 10:00 “Good morning” instead of the date.</value></data>
+  <data name="set.hotkey" xml:space="preserve"><value>Hotkey</value></data>
+  <data name="set.hotkey.d" xml:space="preserve"><value>Open or close the island from the keyboard. Click the combination to set your own.</value></data>
+  <data name="set.hotkey.need" xml:space="preserve"><value>Needs Ctrl, Alt or Win</value></data>
+  <data name="set.hotkey.press" xml:space="preserve"><value>Press a combination…</value></data>
+  <data name="set.hotkey.taken" xml:space="preserve"><value>taken by another app</value></data>
+  <data name="set.idle" xml:space="preserve"><value>Idle view</value></data>
+  <data name="set.idle.detailed" xml:space="preserve"><value>Detailed</value></data>
+  <data name="set.idle.minimal" xml:space="preserve"><value>Minimal</value></data>
+  <data name="set.idle.view" xml:space="preserve"><value>Idle view</value></data>
+  <data name="set.idle.view.d" xml:space="preserve"><value>Detailed: big clock, date, weather, track title and the lyric line. Minimal: only the clock or the cover with the equalizer.</value></data>
+  <data name="set.language" xml:space="preserve"><value>Language</value></data>
+  <data name="set.language.d" xml:space="preserve"><value>Language of the interface, dates and weather. Changes at once, no restart.</value></data>
+  <data name="set.language.system" xml:space="preserve"><value>Like Windows</value></data>
+  <data name="set.live" xml:space="preserve"><value>Live background</value></data>
+  <data name="set.live.calm" xml:space="preserve"><value>Calm</value></data>
+  <data name="set.live.d" xml:space="preserve"><value>Weather animation on the Weather tab. Calm — no cloud shadows and wind lines.</value></data>
+  <data name="set.live.full" xml:space="preserve"><value>Full</value></data>
+  <data name="set.live.noanim" xml:space="preserve"><value>Animations are off (Appearance → Animations).</value></data>
+  <data name="set.live.off" xml:space="preserve"><value>Off</value></data>
+  <data name="set.logs" xml:space="preserve"><value>Log folder</value></data>
+  <data name="set.logs.d" xml:space="preserve"><value>log.txt, settings, events, tasks and the weather cache.</value></data>
+  <data name="set.logs.open" xml:space="preserve"><value>Open folder</value></data>
+  <data name="set.lyrics" xml:space="preserve"><value>Lyrics</value></data>
+  <data name="set.lyrics.artist" xml:space="preserve"><value>Artist when there are no lyrics</value></data>
+  <data name="set.lyrics.artist.d" xml:space="preserve"><value>The second line in the island shows the artist while no lyrics are found.</value></data>
+  <data name="set.lyrics.backing" xml:space="preserve"><value>Show backing vocals</value></data>
+  <data name="set.lyrics.backing.d" xml:space="preserve"><value>Words in parentheses — smaller and in italics.</value></data>
+  <data name="set.lyrics.in" xml:space="preserve"><value>In the island</value></data>
+  <data name="set.lyrics.none" xml:space="preserve"><value>Nowhere</value></data>
+  <data name="set.lyrics.off" xml:space="preserve"><value>Lyrics are off (Where to show → Nowhere).</value></data>
+  <data name="set.lyrics.onlyin" xml:space="preserve"><value>Only when lyrics are shown “In the island”.</value></data>
+  <data name="set.lyrics.place" xml:space="preserve"><value>Where to show</value></data>
+  <data name="set.lyrics.place.d" xml:space="preserve"><value>The lyric line from lrclib.net: inside the island (under the track title) or as a separate capsule below it.</value></data>
+  <data name="set.lyrics.size" xml:space="preserve"><value>Text size</value></data>
+  <data name="set.lyrics.size.d" xml:space="preserve"><value>Size of the lyric line.</value></data>
+  <data name="set.lyrics.under" xml:space="preserve"><value>Under the island</value></data>
+  <data name="set.monitor" xml:space="preserve"><value>Monitor</value></data>
+  <data name="set.monitor.d" xml:space="preserve"><value>Which screen shows the island.</value></data>
+  <data name="set.monitor.main" xml:space="preserve"><value>Main</value></data>
+  <data name="set.monitor.n" xml:space="preserve"><value>Monitor {0}</value></data>
+  <data name="set.monitor.one" xml:space="preserve"><value>One monitor is connected.</value></data>
+  <data name="set.music" xml:space="preserve"><value>Music</value></data>
+  <data name="set.nextevent" xml:space="preserve"><value>Next event</value></data>
+  <data name="set.nextevent.d" xml:space="preserve"><value>On Home and in the collapsed island: “14:30 · Call”.</value></data>
+  <data name="set.nothing" xml:space="preserve"><value>Nothing found</value></data>
+  <data name="set.notifications" xml:space="preserve"><value>Notifications</value></data>
+  <data name="set.notify" xml:space="preserve"><value>Notifications in the island</value></data>
+  <data name="set.notify.access" xml:space="preserve"><value>Notification access</value></data>
+  <data name="set.notify.access.ask" xml:space="preserve"><value>Windows asks once. The island reads only notifications of the chosen apps.</value></data>
+  <data name="set.notify.access.denied" xml:space="preserve"><value>Access is denied. Turn it on in Windows Settings → Privacy → Notifications.</value></data>
+  <data name="set.notify.access.identity" xml:space="preserve"><value>Windows lets only apps installed as a package (MSIX) read other apps' notifications. This build is a single exe, so Telegram and Discord notifications are not available yet; screenshots work.</value></data>
+  <data name="set.notify.access.ok" xml:space="preserve"><value>Allowed. The island sees new Telegram and Discord notifications.</value></data>
+  <data name="set.notify.allow" xml:space="preserve"><value>Allow</value></data>
+  <data name="set.notify.chats" xml:space="preserve"><value>Messengers</value></data>
+  <data name="set.notify.d" xml:space="preserve"><value>Messages and screenshots briefly appear in the capsule.</value></data>
+  <data name="set.notify.dc" xml:space="preserve"><value>Channel or sender name and the start of the message.</value></data>
+  <data name="set.notify.identity.short" xml:space="preserve"><value>Needs an MSIX package install, see “Notification access”.</value></data>
+  <data name="set.notify.off" xml:space="preserve"><value>Notifications in the island are off.</value></data>
+  <data name="set.notify.open" xml:space="preserve"><value>Open settings</value></data>
+  <data name="set.notify.tg" xml:space="preserve"><value>Name, avatar and the start of the message.</value></data>
+  <data name="set.offset" xml:space="preserve"><value>Top gap</value></data>
+  <data name="set.offset.d" xml:space="preserve"><value>Distance from the top edge of the screen to the island.</value></data>
+  <data name="set.offset.notch" xml:space="preserve"><value>Not available for the Notch shape: it is always glued to the screen edge.</value></data>
+  <data name="set.onlydetailed" xml:space="preserve"><value>Works only in the detailed view (General → Idle view).</value></data>
+  <data name="set.open" xml:space="preserve"><value>Open</value></data>
+  <data name="set.places" xml:space="preserve"><value>Places</value></data>
+  <data name="set.places.add" xml:space="preserve"><value>Add a place</value></data>
+  <data name="set.places.empty" xml:space="preserve"><value>No places yet. Add a city and the weather appears in the island.</value></data>
+  <data name="set.places.full" xml:space="preserve"><value>Up to 3 places</value></data>
+  <data name="set.quit" xml:space="preserve"><value>Quit Dynamic Mochi</value></data>
+  <data name="set.reminders" xml:space="preserve"><value>Reminders in the island</value></data>
+  <data name="set.reminders.d" xml:space="preserve"><value>At reminder time the island shows the event or task.</value></data>
+  <data name="set.remlen" xml:space="preserve"><value>Reminder duration</value></data>
+  <data name="set.remlen.d" xml:space="preserve"><value>How many seconds a reminder stays in the island.</value></data>
+  <data name="set.remlen.off" xml:space="preserve"><value>Reminders are off.</value></data>
+  <data name="set.reset" xml:space="preserve"><value>Reset all settings</value></data>
+  <data name="set.reset.d" xml:space="preserve"><value>Back to the defaults. Saved places are reset too.</value></data>
+  <data name="set.reset.do" xml:space="preserve"><value>Reset</value></data>
+  <data name="set.reset.sure" xml:space="preserve"><value>Reset for sure?</value></data>
+  <data name="set.saved" xml:space="preserve"><value>Changes are saved right away</value></data>
+  <data name="set.search" xml:space="preserve"><value>Search settings</value></data>
+  <data name="set.sec" xml:space="preserve"><value>{0} s</value></data>
+  <data name="set.shape" xml:space="preserve"><value>Shape</value></data>
+  <data name="set.shape.d" xml:space="preserve"><value>Island — a pill with a gap from the edge. Notch — like a MacBook notch, glued to the top edge of the screen.</value></data>
+  <data name="set.shape.island" xml:space="preserve"><value>Island</value></data>
+  <data name="set.shape.notch" xml:space="preserve"><value>Notch</value></data>
+  <data name="set.shots" xml:space="preserve"><value>Screenshot notice</value></data>
+  <data name="set.shots.d" xml:space="preserve"><value>After Win+Shift+S or PrtScn — a preview in the island. A click opens the editor.</value></data>
+  <data name="set.shots.group" xml:space="preserve"><value>Screenshots</value></data>
+  <data name="set.size" xml:space="preserve"><value>Island size</value></data>
+  <data name="set.size.compact" xml:space="preserve"><value>Compact</value></data>
+  <data name="set.size.d" xml:space="preserve"><value>Compact, normal or large; the slider fine-tunes it. The island changes at once.</value></data>
+  <data name="set.size.large" xml:space="preserve"><value>Large</value></data>
+  <data name="set.size.normal" xml:space="preserve"><value>Normal</value></data>
+  <data name="set.system" xml:space="preserve"><value>System</value></data>
+  <data name="set.temp" xml:space="preserve"><value>Temperature</value></data>
+  <data name="set.temp.d" xml:space="preserve"><value>Temperature units.</value></data>
+  <data name="set.tests" xml:space="preserve"><value>For testing</value></data>
+  <data name="set.theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="set.tint" xml:space="preserve"><value>Cover colour glow</value></data>
+  <data name="set.tint.colored" xml:space="preserve"><value>Only in the OLED and White themes: coloured themes have their own colour.</value></data>
+  <data name="set.tint.d" xml:space="preserve"><value>A soft glow of the cover colour in the island corner.</value></data>
+  <data name="set.version" xml:space="preserve"><value>Version</value></data>
+  <data name="set.volume" xml:space="preserve"><value>Volume</value></data>
+  <data name="set.volume.d" xml:space="preserve"><value>“Player only” changes the volume of the app that plays. “System” changes the Windows volume.</value></data>
+  <data name="set.volume.player" xml:space="preserve"><value>Player only</value></data>
+  <data name="set.volume.system" xml:space="preserve"><value>System</value></data>
+  <data name="set.wcapsule" xml:space="preserve"><value>Weather in the collapsed island</value></data>
+  <data name="set.wcapsule.d" xml:space="preserve"><value>Icon, description and temperature next to the clock.</value></data>
+  <data name="set.weather" xml:space="preserve"><value>Weather</value></data>
+  <data name="set.week" xml:space="preserve"><value>Week starts on</value></data>
+  <data name="set.week.d" xml:space="preserve"><value>First day of the week in the month grid.</value></data>
+  <data name="set.week.mon" xml:space="preserve"><value>Mon</value></data>
+  <data name="set.week.sun" xml:space="preserve"><value>Sun</value></data>
+  <data name="set.wind" xml:space="preserve"><value>Wind</value></data>
+  <data name="set.wind.d" xml:space="preserve"><value>Wind speed units. Change everywhere at once.</value></data>
+  <data name="set.window" xml:space="preserve"><value>Dynamic Mochi — settings</value></data>
+  <data name="set.wp.clouds" xml:space="preserve"><value>Clouds</value></data>
+  <data name="set.wp.drizzle" xml:space="preserve"><value>Drizzle</value></data>
+  <data name="set.wp.fog" xml:space="preserve"><value>Fog</value></data>
+  <data name="set.wp.night" xml:space="preserve"><value>Night</value></data>
+  <data name="set.wp.off" xml:space="preserve"><value>Off</value></data>
+  <data name="set.wp.rain" xml:space="preserve"><value>Rain</value></data>
+  <data name="set.wp.snow" xml:space="preserve"><value>Snow</value></data>
+  <data name="set.wp.storm" xml:space="preserve"><value>Storm</value></data>
+  <data name="set.wp.sun" xml:space="preserve"><value>Clear</value></data>
+  <data name="set.wpreview" xml:space="preserve"><value>Weather preview</value></data>
+  <data name="set.wpreview.d" xml:space="preserve"><value>Show the live background without real weather. Open the Weather tab in the island.</value></data>
+  <data name="shot.sub" xml:space="preserve"><value>Click to open in the editor</value></data>
+  <data name="shot.title" xml:space="preserve"><value>Screenshot copied</value></data>
+  <data name="src.player" xml:space="preserve"><value>Media Player</value></data>
+  <data name="src.yandex" xml:space="preserve"><value>Yandex Music</value></data>
+  <data name="tab.calendar" xml:space="preserve"><value>Calendar</value></data>
+  <data name="tab.home" xml:space="preserve"><value>Home</value></data>
+  <data name="tab.music" xml:space="preserve"><value>Music</value></data>
+  <data name="tab.settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="tab.weather" xml:space="preserve"><value>Weather</value></data>
+  <data name="tasks.delete" xml:space="preserve"><value>Delete task</value></data>
+  <data name="tasks.done" xml:space="preserve"><value>Completed · {0}</value></data>
+  <data name="tasks.empty" xml:space="preserve"><value>No tasks yet</value></data>
+  <data name="tasks.new" xml:space="preserve"><value>New task</value></data>
+  <data name="tasks.remind" xml:space="preserve"><value>Task</value></data>
+  <data name="tasks.time" xml:space="preserve"><value>Remind at</value></data>
+  <data name="tasks.time.tip" xml:space="preserve"><value>Reminder time, e.g. 18:30 (optional)</value></data>
+  <data name="theme.blue" xml:space="preserve"><value>Blue</value></data>
+  <data name="theme.green" xml:space="preserve"><value>Green</value></data>
+  <data name="theme.oled" xml:space="preserve"><value>OLED</value></data>
+  <data name="theme.orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="theme.red" xml:space="preserve"><value>Red</value></data>
+  <data name="theme.white" xml:space="preserve"><value>White</value></data>
+  <data name="timer.click" xml:space="preserve"><value>click to pause</value></data>
+  <data name="timer.custom" xml:space="preserve"><value>Custom time</value></data>
+  <data name="timer.done" xml:space="preserve"><value>Timer {0} — done</value></data>
+  <data name="timer.input" xml:space="preserve"><value>min or mm:ss</value></data>
+  <data name="timer.min" xml:space="preserve"><value>{0} min</value></data>
+  <data name="timer.pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="timer.paused" xml:space="preserve"><value>paused</value></data>
+  <data name="timer.quick" xml:space="preserve"><value>Quick start</value></data>
+  <data name="timer.ready" xml:space="preserve"><value>ready</value></data>
+  <data name="timer.resume" xml:space="preserve"><value>Resume</value></data>
+  <data name="timer.running" xml:space="preserve"><value>running</value></data>
+  <data name="timer.start" xml:space="preserve"><value>Start</value></data>
+  <data name="timer.stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="unit.kmh" xml:space="preserve"><value>km/h</value></data>
+  <data name="unit.kn" xml:space="preserve"><value>kn</value></data>
+  <data name="unit.mph" xml:space="preserve"><value>mph</value></data>
+  <data name="unit.ms" xml:space="preserve"><value>m/s</value></data>
+  <data name="weather.choose" xml:space="preserve"><value>Choose</value></data>
+  <data name="weather.choose.hint" xml:space="preserve"><value>Pick a city to see the weather</value></data>
+  <data name="weather.failed" xml:space="preserve"><value>Could not load</value></data>
+  <data name="weather.feels" xml:space="preserve"><value>Feels like {0}</value></data>
+  <data name="weather.humidity" xml:space="preserve"><value>Humidity {0}%</value></data>
+  <data name="weather.loading" xml:space="preserve"><value>Loading the weather</value></data>
+  <data name="weather.nodata" xml:space="preserve"><value>no data</value></data>
+  <data name="weather.now" xml:space="preserve"><value>Now</value></data>
+  <data name="weather.place.tip" xml:space="preserve"><value>Choose a place</value></data>
+  <data name="weather.refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="weather.updated" xml:space="preserve"><value>updated {0}</value></data>
+  <data name="weather.updating" xml:space="preserve"><value>updating…</value></data>
+  <data name="weekdays.short" xml:space="preserve"><value>Su,Mo,Tu,We,Th,Fr,Sa</value></data>
+  <data name="when.hours" xml:space="preserve"><value>in {0} h</value></data>
+  <data name="when.min" xml:space="preserve"><value>in {0} min</value></data>
+  <data name="when.now" xml:space="preserve"><value>now</value></data>
+  <data name="when.today" xml:space="preserve"><value>today</value></data>
+  <data name="wind.arrow.tip" xml:space="preserve"><value>The arrow shows where the wind blows</value></data>
+  <data name="wind.calm" xml:space="preserve"><value>Calm</value></data>
+  <data name="wind.gusts" xml:space="preserve"><value>gusts up to {0} {1} · {2}</value></data>
+  <data name="wind.now" xml:space="preserve"><value>Wind {0} {1} · {2}</value></data>
+  <data name="wmo.0" xml:space="preserve"><value>Clear</value></data>
+  <data name="wmo.1" xml:space="preserve"><value>Mainly clear</value></data>
+  <data name="wmo.2" xml:space="preserve"><value>Partly cloudy</value></data>
+  <data name="wmo.3" xml:space="preserve"><value>Cloudy</value></data>
+  <data name="wmo.45" xml:space="preserve"><value>Fog</value></data>
+  <data name="wmo.48" xml:space="preserve"><value>Rime fog</value></data>
+  <data name="wmo.51" xml:space="preserve"><value>Light drizzle</value></data>
+  <data name="wmo.53" xml:space="preserve"><value>Drizzle</value></data>
+  <data name="wmo.55" xml:space="preserve"><value>Dense drizzle</value></data>
+  <data name="wmo.56" xml:space="preserve"><value>Freezing drizzle</value></data>
+  <data name="wmo.57" xml:space="preserve"><value>Freezing drizzle</value></data>
+  <data name="wmo.61" xml:space="preserve"><value>Light rain</value></data>
+  <data name="wmo.63" xml:space="preserve"><value>Rain</value></data>
+  <data name="wmo.65" xml:space="preserve"><value>Heavy rain</value></data>
+  <data name="wmo.66" xml:space="preserve"><value>Freezing rain</value></data>
+  <data name="wmo.67" xml:space="preserve"><value>Freezing rain</value></data>
+  <data name="wmo.71" xml:space="preserve"><value>Light snow</value></data>
+  <data name="wmo.73" xml:space="preserve"><value>Snow</value></data>
+  <data name="wmo.75" xml:space="preserve"><value>Heavy snow</value></data>
+  <data name="wmo.77" xml:space="preserve"><value>Snow grains</value></data>
+  <data name="wmo.80" xml:space="preserve"><value>Light showers</value></data>
+  <data name="wmo.81" xml:space="preserve"><value>Showers</value></data>
+  <data name="wmo.82" xml:space="preserve"><value>Violent showers</value></data>
+  <data name="wmo.85" xml:space="preserve"><value>Light snow showers</value></data>
+  <data name="wmo.86" xml:space="preserve"><value>Snow showers</value></data>
+  <data name="wmo.95" xml:space="preserve"><value>Thunderstorm</value></data>
+  <data name="wmo.96" xml:space="preserve"><value>Thunderstorm with hail</value></data>
+  <data name="wmo.99" xml:space="preserve"><value>Thunderstorm with hail</value></data>
+</root>

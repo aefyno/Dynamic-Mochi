@@ -36,6 +36,28 @@ public sealed class WeatherFx : FrameworkElement
     /// <summary>Tint for the sun and stars (accent of coloured themes); null = natural colours.</summary>
     public Color? Tint { get; set; }
 
+    /// <summary>"Спокойный" live background: no cloud shadows, no wind lines.</summary>
+    public bool Calm { get; set; }
+
+    /// <summary>Partly cloudy: the sun sometimes peeks out between the clouds.</summary>
+    public bool Partly { get; set; }
+
+    /// <summary>Night: clouds lit from below by cold moonlight, stars in the gaps.</summary>
+    public bool Night { get; set; }
+
+    /// <summary>Real wind (m/s) and the direction it comes from (degrees): speed and direction of clouds and wind lines.</summary>
+    public double WindMs { get; set; } = 3;
+    public double WindFromDeg { get; set; } = 270;
+
+    // clouds: 3 parallax layers, shadows, the sun peeking, wind lines
+    private sealed class Cloud { public double X, Y, Scale, Seed; public int Layer; }
+    private readonly List<Cloud> _clouds = new();
+    private readonly List<P> _cloudStars = new();
+    private double _nextShadow = 6, _shadowAt = -100, _shadowDur = 5, _shadowY;
+    private double _nextPeek = 4, _peekAt = -100, _peekDur = 4;
+    private readonly List<(double X, double Y, double Born, double Len)> _gusts = new();
+    private double _nextGust = 1;
+
     public Fx Kind => _kind;
 
     public static Fx ForCode(int wmo, bool isDay) => wmo switch
@@ -129,7 +151,7 @@ public sealed class WeatherFx : FrameworkElement
         int n = _kind switch
         {
             Fx.Stars => 34,
-            Fx.Clouds => 4,
+            Fx.Clouds => 0,
             Fx.Fog => 3,
             Fx.Drizzle => 26,
             Fx.Rain or Fx.Thunder => _rainCount,
@@ -150,6 +172,26 @@ public sealed class WeatherFx : FrameworkElement
         }
         if (_kind == Fx.Clouds || _kind == Fx.Fog)
             for (int i = 0; i < _ps.Count; i++) _ps[i].Y = (i + 0.5) / _ps.Count;
+
+        _clouds.Clear();
+        _cloudStars.Clear();
+        _gusts.Clear();
+        if (_kind == Fx.Clouds)
+        {
+            // far → near: smaller, paler and slower at the back
+            for (int layer = 0; layer < 3; layer++)
+                for (int i = 0; i < 3; i++)
+                    _clouds.Add(new Cloud
+                    {
+                        Layer = layer,
+                        X = (i + _rng.NextDouble() * 0.6) / 3 * 1.4 - 0.2,
+                        Y = 0.08 + layer * 0.22 + _rng.NextDouble() * 0.18,
+                        Scale = (0.6 + layer * 0.35) * (0.8 + _rng.NextDouble() * 0.4),
+                        Seed = _rng.NextDouble() * 1000,
+                    });
+            for (int i = 0; i < 24; i++)
+                _cloudStars.Add(new P { X = _rng.NextDouble(), Y = _rng.NextDouble() * 0.8, Size = _rng.NextDouble(), Phase = _rng.NextDouble() * 6.28, Speed = 0.6 + _rng.NextDouble() });
+        }
     }
 
     private void Step(double dt)
@@ -172,8 +214,7 @@ public sealed class WeatherFx : FrameworkElement
                     p.Y += dt * (18 + 30 * p.Speed) / h;
                     break;
                 case Fx.Clouds:
-                    p.X += dt * (6 + 10 * p.Speed) / w;     // parallax: different speeds
-                    break;
+                    break;                                   // drawn from _clouds
                 case Fx.Fog:
                     p.X += dt * (p.Phase > Math.PI ? 1 : -1) * (5 + 6 * p.Speed) / w;
                     break;
@@ -182,6 +223,8 @@ public sealed class WeatherFx : FrameworkElement
             if (p.X > 1.4) p.X -= 1.8;
             if (p.X < -0.4) p.X += 1.8;
         }
+
+        if (_kind == Fx.Clouds) StepClouds(dt, w, h);
 
         if (_kind == Fx.Thunder && _t >= _nextFlash)
         {
@@ -269,15 +312,8 @@ public sealed class WeatherFx : FrameworkElement
                 break;
             }
             case Fx.Clouds:
-            {
-                foreach (var p in _ps)
-                {
-                    double cw = w * (0.35 + p.Size * 0.25), ch = h * (0.18 + p.Size * 0.12);
-                    var brush = new RadialGradientBrush(Color.FromArgb((byte)(48 * m), ink.R, ink.G, ink.B), Color.FromArgb(0, ink.R, ink.G, ink.B));
-                    dc.DrawEllipse(brush, null, new Point(p.X * w, (0.08 + p.Y * 0.7) * h), cw, ch);
-                }
+                DrawClouds(dc, w, h, m, ink);
                 break;
-            }
             case Fx.Fog:
             {
                 foreach (var p in _ps)
@@ -321,6 +357,134 @@ public sealed class WeatherFx : FrameworkElement
                 break;
             }
         }
+    }
+
+    // ================= Clouds
+
+    /// <summary>Unit vector of where the wind blows to (screen x), at least a slow drift.</summary>
+    private double WindDirX => Math.Sin((WindFromDeg + 180) * Math.PI / 180) is var x && Math.Abs(x) < 0.25 ? (x < 0 ? -0.25 : 0.25) : Math.Sin((WindFromDeg + 180) * Math.PI / 180);
+
+    private void StepClouds(double dt, double w, double h)
+    {
+        double speed = Math.Clamp(5 + WindMs * 2.2, 5, 55);           // px/s for the nearest layer
+        foreach (var c in _clouds)
+        {
+            double k = c.Layer switch { 0 => 0.35, 1 => 0.6, _ => 1.0 };
+            c.X += WindDirX * speed * k * dt / w;
+            if (c.X > 1.35) { c.X -= 1.7; c.Y = 0.08 + c.Layer * 0.22 + _rng.NextDouble() * 0.18; }
+            if (c.X < -0.35) { c.X += 1.7; c.Y = 0.08 + c.Layer * 0.22 + _rng.NextDouble() * 0.18; }
+        }
+        if (!Calm && _t >= _nextShadow)
+        {
+            _shadowAt = _t;
+            _shadowDur = 4 + _rng.NextDouble() * 2;
+            _shadowY = 0.3 + _rng.NextDouble() * 0.5;
+            _nextShadow = _t + 15 + _rng.NextDouble() * 10;
+        }
+        if (Partly && !Night && _t >= _nextPeek)
+        {
+            _peekAt = _t;
+            _peekDur = 3 + _rng.NextDouble() * 2;
+            _nextPeek = _t + _peekDur + 6 + _rng.NextDouble() * 8;
+        }
+        // strong wind: a couple of thin fast lines
+        _gusts.RemoveAll(g => _t - g.Born > 0.9);
+        if (!Calm && WindMs >= 8 && _t >= _nextGust && _gusts.Count < 2)
+        {
+            _gusts.Add((_rng.NextDouble(), 0.15 + _rng.NextDouble() * 0.7, _t, 40 + _rng.NextDouble() * 50));
+            _nextGust = _t + 0.5 + _rng.NextDouble() * 1.2;
+        }
+    }
+
+    private static readonly Dictionary<long, RadialGradientBrush> PuffCache = new();
+
+    /// <summary>Soft round puff: colour in the centre fading to transparent (cached per colour and alpha).</summary>
+    private static RadialGradientBrush Puff(Color c, double alpha)
+    {
+        byte a = (byte)Math.Clamp(Math.Round(alpha * 255 / 4) * 4, 0, 255);
+        long key = ((long)a << 24) | ((long)c.R << 16) | ((long)c.G << 8) | c.B;
+        if (!PuffCache.TryGetValue(key, out var b))
+        {
+            b = new RadialGradientBrush();
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(a, c.R, c.G, c.B), 0));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(a * 0.55), c.R, c.G, c.B), 0.55));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1));
+            b.Freeze();
+            PuffCache[key] = b;
+        }
+        return b;
+    }
+
+    private void DrawClouds(DrawingContext dc, double w, double h, double m, Color ink)
+    {
+        // the sun peeking between the clouds: halo grows for a few seconds, then hides again
+        double peek = Envelope(_t - _peekAt, _peekDur);
+        if (Partly && peek > 0.01)
+        {
+            var sun = Tint ?? Color.FromRgb(0xFF, 0xD6, 0x0A);
+            double r = Math.Min(w, h) * (0.45 + 0.15 * peek);
+            dc.DrawEllipse(Puff(sun, 0.42 * peek * m), null, new Point(w * 0.82, h * 0.08), r, r);
+        }
+
+        // night: stars twinkle in the gaps (drawn first, clouds cover them partly)
+        if (Night)
+        {
+            var star = Tint ?? ink;
+            foreach (var s in _cloudStars)
+            {
+                double tw = 0.2 + 0.8 * (0.5 + 0.5 * Math.Sin(_t * s.Speed + s.Phase));
+                double size = 0.6 + s.Size * 0.5;
+                dc.DrawEllipse(Br(star, 0.7 * tw * m), null, new Point(s.X * w, s.Y * h), size, size);
+            }
+        }
+
+        var moon = Color.FromRgb(0xA9, 0xC4, 0xFF);
+        foreach (var c in _clouds.OrderBy(c => c.Layer))
+        {
+            double alpha = c.Layer switch { 0 => 0.10, 1 => 0.15, _ => 0.22 };
+            double cw = w * 0.22 * c.Scale, ch = h * 0.13 * c.Scale;
+            double cx = c.X * w, cy = c.Y * h;
+            // a cloud = several puffs: a wide base and rounded tops, slowly breathing
+            for (int i = 0; i < 5; i++)
+            {
+                double f = i / 4.0;
+                double ox = (f - 0.5) * cw * 1.5;
+                double bump = Math.Sin(f * Math.PI);
+                double breathe = 1 + 0.05 * Math.Sin(_t * 0.4 + c.Seed + i);
+                double rx = cw * (0.42 + 0.25 * bump) * breathe, ry = ch * (0.55 + 0.45 * bump) * breathe;
+                double oy = -bump * ch * 0.35;
+                dc.DrawEllipse(Puff(ink, alpha * m), null, new Point(cx + ox, cy + oy), rx, ry);
+            }
+            if (Night && c.Layer > 0)
+                dc.DrawEllipse(Puff(moon, alpha * 0.8 * m), null, new Point(cx, cy + ch * 0.45), cw * 0.9, ch * 0.35);   // cold light from below
+        }
+
+        // cloud shadow passing over the content
+        double sh = Envelope(_t - _shadowAt, _shadowDur);
+        if (!Calm && sh > 0.01)
+        {
+            double k = (_t - _shadowAt) / _shadowDur;
+            double x = WindDirX >= 0 ? -0.3 + k * 1.6 : 1.3 - k * 1.6;
+            dc.DrawEllipse(Puff(Colors.Black, 0.16 * sh * m), null, new Point(x * w, _shadowY * h), w * 0.45, h * 0.5);
+        }
+
+        foreach (var g in _gusts)
+        {
+            double k = (_t - g.Born) / 0.9;
+            double x = (WindDirX >= 0 ? g.X - 0.2 + k * 0.7 : g.X + 0.2 - k * 0.7) * w;
+            double y = g.Y * h;
+            double a = Math.Sin(k * Math.PI) * 0.3 * m;
+            double len = g.Len * (WindDirX >= 0 ? -1 : 1);
+            dc.DrawLine(new Pen(Br(ink, a), 1), new Point(x, y), new Point(x + len, y + 2));
+        }
+    }
+
+    /// <summary>0 → 1 → 0 over the duration (smooth in and out), 0 outside.</summary>
+    private static double Envelope(double t, double dur)
+    {
+        if (t < 0 || t > dur) return 0;
+        double k = t / dur;
+        return Math.Sin(k * Math.PI) is var s && s > 0 ? Math.Min(1, s * 1.6) : 0;
     }
 
     /// <summary>Flash envelope: 120 ms at full, then a fast fade.</summary>

@@ -9,12 +9,8 @@
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" ShowActivated="False"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="{DynamicResource UiFont}"
+        Foreground="{DynamicResource FgBrush}"
         TextOptions.TextFormattingMode="Display">
-
-    <Window.Resources>
-        <local:HeightToRadiusConverter x:Key="HeightToRadius"/>
-
-    </Window.Resources>
 
     <Grid x:Name="WindowRoot">
         <StackPanel x:Name="IslandStack" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0">
@@ -31,25 +27,38 @@
                     <ScaleTransform x:Name="RootScale" ScaleX="0" ScaleY="0"/>
                 </Grid.RenderTransform>
 
+                <!-- Notch shape: small reverse corners so the notch flows out of the screen edge -->
+                <Path x:Name="EarLeft" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                      Data="M0,0 L8,0 L8,8 A8,8 0 0 0 0,0 Z" Fill="Black" IsHitTestVisible="False">
+                    <Path.RenderTransform>
+                        <TranslateTransform X="-8"/>
+                    </Path.RenderTransform>
+                </Path>
+                <Path x:Name="EarRight" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"
+                      Data="M0,0 L8,0 A8,8 0 0 0 0,8 Z" Fill="Black" IsHitTestVisible="False">
+                    <Path.RenderTransform>
+                        <TranslateTransform X="8"/>
+                    </Path.RenderTransform>
+                </Path>
+
                 <!-- The only shadow / glow: on a container without a background, so it follows the rounded capsule -->
                 <Border x:Name="GlowHost">
                     <Border.Effect>
                         <DropShadowEffect x:Name="GlowEffect" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.45" Color="Black"/>
                     </Border.Effect>
-                    <Border x:Name="Capsule" Width="260" Height="52"
+                    <Border x:Name="Capsule" Width="300" Height="58" CornerRadius="29"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0"
-                            CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource HeightToRadius}}"
                             MouseEnter="Capsule_MouseEnter" MouseLeave="Capsule_MouseLeave" SizeChanged="Capsule_SizeChanged"
                             MouseLeftButtonUp="Capsule_MouseLeftButtonUp" MouseWheel="Capsule_MouseWheel">
                         <Border.Background>
                             <LinearGradientBrush x:Name="BgBrush" StartPoint="0,0.5" EndPoint="1,0.5">
                                 <GradientStop x:Name="BgTopStop" Color="Black" Offset="0"/>
-                                <GradientStop x:Name="BgMidStop" Color="Black" Offset="0.5"/>
+                                <GradientStop x:Name="BgMidStop" Color="Black" Offset="0.55"/>
                                 <GradientStop x:Name="BgEndStop" Color="Black" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
 
-                        <!-- Everything inside is clipped to the rounded shape (Clip updated on every size change) -->
+                        <!-- Everything inside is clipped to the capsule shape (Clip updated on every size change) -->
                         <Grid x:Name="CapsuleContent">
                             <!-- Colour blob: artwork (OLED / white) or weather on the weather tab -->
                             <Rectangle x:Name="TintRect" IsHitTestVisible="False">
@@ -67,9 +76,8 @@
                             <!-- ===== Collapsed ===== -->
                             <Grid x:Name="CollapsedView">
                                 <!-- minimal idle: clock only -->
-                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="17" FontWeight="SemiBold"
-                                           Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="17" FontWeight="{DynamicResource DisplayWeight}"
+                                           Typography.NumeralAlignment="Tabular" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                                 <!-- minimal playing: art · (clock) · equalizer -->
                                 <Grid x:Name="MinPlayRow" Margin="6,0,14,0" Visibility="Collapsed">
                                     <Border x:Name="MinArtBox" Width="24" Height="24" CornerRadius="7" HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -80,7 +88,7 @@
                                         <Image x:Name="MinArt" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBlock x:Name="MinMusicClock" FontSize="13" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
-                                               Foreground="{DynamicResource FgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                               FontFamily="{DynamicResource DisplayFont}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     <StackPanel x:Name="MinEqBars" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Height="14">
                                         <Rectangle x:Name="MinBar0" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="MinBar1" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
@@ -88,8 +96,9 @@
                                         <Rectangle x:Name="MinBar3" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                     </StackPanel>
                                 </Grid>
-                                <!-- playing / paused -->
-                                <Grid x:Name="PlayingRow" Margin="8,0,18,0" Visibility="Collapsed">
+
+                                <!-- playing / paused, 420×58: art 40 · title + lyric line · (timer) · equalizer · | · clock -->
+                                <Grid x:Name="PlayingRow" Margin="9,0,20,0" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -97,52 +106,96 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border x:Name="MiniArtBox" Width="36" Height="36" CornerRadius="10" VerticalAlignment="Center"
+                                    <Border x:Name="MiniArtBox" Width="40" Height="40" CornerRadius="11" VerticalAlignment="Center"
                                             Background="{DynamicResource SurfaceBrush}">
                                         <Border.Clip>
-                                            <RectangleGeometry Rect="0,0,36,36" RadiusX="10" RadiusY="10"/>
+                                            <RectangleGeometry Rect="0,0,40,40" RadiusX="11" RadiusY="11"/>
                                         </Border.Clip>
                                         <Grid>
-                                            <TextBlock Text="&#xE8D6;" Style="{StaticResource Glyph}" FontSize="15"
+                                            <TextBlock Text="&#xE8D6;" Style="{StaticResource Glyph}" FontSize="16"
                                                        Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center"/>
                                             <Image x:Name="MiniArt" Stretch="UniformToFill"/>
                                         </Grid>
                                     </Border>
-                                    <controls:MarqueeText x:Name="MiniTitle" Grid.Column="1" Margin="12,0" FontSize="14" FontWeight="SemiBold"/>
+                                    <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                                        <controls:MarqueeText x:Name="MiniTitle" FontSize="14" FontWeight="SemiBold" Height="19"/>
+                                        <Grid x:Name="MiniLyricBox" Height="17" ClipToBounds="True">
+                                            <TextBlock x:Name="MiniLyric" FontSize="12.5" Foreground="{DynamicResource SubBrush}" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.RenderTransform>
+                                                    <TranslateTransform x:Name="MiniLyricShift"/>
+                                                </TextBlock.RenderTransform>
+                                            </TextBlock>
+                                        </Grid>
+                                    </StackPanel>
                                     <StackPanel x:Name="EqBars" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Height="18">
                                         <Rectangle x:Name="Bar0" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="Bar1" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="Bar2" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="Bar3" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                     </StackPanel>
-                                    <Rectangle Grid.Column="3" Width="1" Height="18" Margin="12,0" Fill="{DynamicResource FaintBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="MiniClock" Grid.Column="4" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
-                                               Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}"/>
+                                    <Rectangle x:Name="MiniDivider" Grid.Column="3" Width="1" Height="20" Margin="12,0" Fill="{DynamicResource FaintBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:ProgressRing x:Name="MiniTimerRing" Width="16" Height="16" Margin="0,0,6,0" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="MiniClock" VerticalAlignment="Center" FontSize="15" FontWeight="{DynamicResource DisplayWeight}"
+                                                   FontFamily="{DynamicResource DisplayFont}" Typography.NumeralAlignment="Tabular"/>
+                                    </StackPanel>
                                 </Grid>
 
-                                <!-- idle: big clock · date · weather -->
+                                <!-- idle, 300×58: big clock · date / greeting · weather or next event -->
                                 <StackPanel x:Name="IdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                                    <TextBlock x:Name="IdleClock" FontFamily="{DynamicResource DisplayFont}" FontSize="22" FontWeight="SemiBold"
-                                               Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="IdleDate" FontSize="13" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center" Margin="10,1,0,0"/>
-                                    <StackPanel x:Name="IdleWeather" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,1,0,0" Visibility="Collapsed">
-                                        <controls:WeatherIcon x:Name="IdleWeatherIcon" Width="16" Height="16" Foreground="{DynamicResource FgBrush}"/>
-                                        <TextBlock x:Name="IdleTemp" FontSize="13" Foreground="{DynamicResource FgBrush}" Margin="4,0,0,0" VerticalAlignment="Center"
-                                                   Typography.NumeralAlignment="Tabular"/>
+                                    <controls:ProgressRing x:Name="IdleTimerRing" Width="22" Height="22" Margin="0,0,8,0" Visibility="Collapsed" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="IdleClock" FontFamily="{DynamicResource DisplayFont}" FontSize="26" FontWeight="{DynamicResource DisplayWeight}"
+                                               Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center" MaxWidth="176">
+                                        <TextBlock x:Name="IdleDate" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel x:Name="IdleWeather" Orientation="Horizontal" Margin="0,1,0,0" Visibility="Collapsed">
+                                            <controls:WeatherIcon x:Name="IdleWeatherIcon" Width="16" Height="16" Foreground="{DynamicResource FgBrush}"/>
+                                            <TextBlock x:Name="IdleTemp" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="5,0,0,0" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" Typography.NumeralAlignment="Tabular"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="IdleEvent" Orientation="Horizontal" Margin="0,1,0,0" Visibility="Collapsed">
+                                            <Ellipse x:Name="IdleEventDot" Width="7" Height="7" Fill="#0A84FF" VerticalAlignment="Center" Margin="2,0,4,0"/>
+                                            <TextBlock x:Name="IdleEventText" FontSize="12" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
 
-                                <!-- live activity: calendar reminder -->
-                                <Grid x:Name="ActivityRow" Margin="20,0,20,0" Visibility="Collapsed" Opacity="0">
+                                <!-- live activity: reminder, timer, notification, screenshot, shelf… -->
+                                <Grid x:Name="ActivityRow" Margin="12,0,20,0" Visibility="Collapsed" Opacity="0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Ellipse x:Name="ActivityDot" Width="10" Height="10" VerticalAlignment="Center" Fill="#0A84FF"/>
-                                    <controls:MarqueeText x:Name="ActivityTitle" Grid.Column="1" Margin="12,0" FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="ActivityWhen" Grid.Column="2" FontSize="13" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center"/>
+                                    <Grid x:Name="ActivityLead" VerticalAlignment="Center" MinWidth="12">
+                                        <Ellipse x:Name="ActivityDot" Width="10" Height="10" Fill="#0A84FF" Margin="8,0,0,0"/>
+                                        <Border x:Name="ActivityPicBox" CornerRadius="16" Width="32" Height="32" Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}">
+                                            <Border.Clip>
+                                                <RectangleGeometry x:Name="ActivityPicClip" Rect="0,0,32,32" RadiusX="16" RadiusY="16"/>
+                                            </Border.Clip>
+                                            <Image x:Name="ActivityPic" Stretch="UniformToFill"/>
+                                        </Border>
+                                        <TextBlock x:Name="ActivityGlyph" Style="{StaticResource Glyph}" FontSize="18" Foreground="{DynamicResource AccentBrush}"
+                                                   HorizontalAlignment="Center" Margin="6,0,0,0" Visibility="Collapsed"/>
+                                        <Border x:Name="ActivityBadge" Width="14" Height="14" CornerRadius="7" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                Margin="0,0,-3,-3" Visibility="Collapsed" Background="#FF229ED9">
+                                            <TextBlock x:Name="ActivityBadgeText" FontSize="8" FontWeight="Bold" Foreground="White"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                        <controls:MarqueeText x:Name="ActivityTitle" FontSize="13" FontWeight="SemiBold" Height="18"/>
+                                        <TextBlock x:Name="ActivitySub" FontSize="12" Foreground="{DynamicResource SubBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="ActivityWhen" Grid.Column="2" FontSize="13" Foreground="{DynamicResource SubBrush}" VerticalAlignment="Center"
+                                               Typography.NumeralAlignment="Tabular"/>
                                 </Grid>
+
+                                <!-- track progress along the bottom edge when there is no lyric line -->
+                                <Border x:Name="CapsuleProgress" Height="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Width="0"
+                                        Background="{DynamicResource AccentBrush}" Opacity="0.85" Visibility="Collapsed" IsHitTestVisible="False"/>
 
                                 <!-- volume OSD while scrolling over the collapsed capsule -->
                                 <Grid x:Name="VolumeOsd" VerticalAlignment="Bottom" Height="3" Margin="20,0,20,5" Opacity="0" IsHitTestVisible="False">
@@ -171,13 +224,13 @@
                                             </Border.RenderTransform>
                                         </Border>
                                         <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="TabHome" Style="{StaticResource TabButton}" Content="&#xE80F;" ToolTip="Главная" Click="Tab_Click" Tag="home"/>
-                                            <Button x:Name="TabMusic" Style="{StaticResource TabButton}" Content="&#xE8D6;" ToolTip="Музыка" Click="Tab_Click" Tag="music"/>
-                                            <Button x:Name="TabCalendar" Style="{StaticResource TabButton}" Content="&#xE787;" ToolTip="Календарь" Click="Tab_Click" Tag="calendar"/>
-                                            <Button x:Name="TabWeather" Style="{StaticResource TabButton}" ToolTip="Погода" Click="Tab_Click" Tag="weather">
+                                            <Button x:Name="TabHome" Style="{StaticResource TabButton}" Content="&#xE80F;" ToolTip="{DynamicResource T.tab.home}" Click="Tab_Click" Tag="home"/>
+                                            <Button x:Name="TabMusic" Style="{StaticResource TabButton}" Content="&#xE8D6;" ToolTip="{DynamicResource T.tab.music}" Click="Tab_Click" Tag="music"/>
+                                            <Button x:Name="TabCalendar" Style="{StaticResource TabButton}" Content="&#xE787;" ToolTip="{DynamicResource T.tab.calendar}" Click="Tab_Click" Tag="calendar"/>
+                                            <Button x:Name="TabWeather" Style="{StaticResource TabButton}" ToolTip="{DynamicResource T.tab.weather}" Click="Tab_Click" Tag="weather">
                                                 <controls:WeatherIcon Icon="PartlySun" Mono="True" Width="19" Height="19"/>
                                             </Button>
-                                            <Button x:Name="TabSettings" Style="{StaticResource TabButton}" Content="&#xE713;" ToolTip="Настройки" Click="Tab_Click" Tag="settings"/>
+                                            <Button x:Name="TabSettings" Style="{StaticResource TabButton}" Content="&#xE713;" ToolTip="{DynamicResource T.tab.settings}" Click="Tab_Click" Tag="settings"/>
                                         </StackPanel>
                                     </Grid>
                                     <TextBlock x:Name="SmallClock" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12"
@@ -197,9 +250,9 @@
                                             <ColumnDefinition Width="55*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock x:Name="BigClock" FontFamily="{DynamicResource DisplayFont}" FontSize="52" FontWeight="SemiBold"
-                                                       Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" Margin="0,-6,0,0"/>
-                                            <TextBlock x:Name="DateText" FontSize="13" Foreground="{DynamicResource SubBrush}" Margin="0,2,0,0"/>
+                                            <TextBlock x:Name="BigClock" FontFamily="{DynamicResource DisplayFont}" FontSize="48" FontWeight="{DynamicResource DisplayWeight}"
+                                                       Typography.NumeralAlignment="Tabular" Margin="0,-6,0,0"/>
+                                            <TextBlock x:Name="DateText" FontSize="13" Foreground="{DynamicResource SubBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                                             <Button x:Name="HomeWeather" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="6,2" Margin="-6,6,0,0"
                                                     Click="HomeWeather_Click" Visibility="Collapsed">
                                                 <StackPanel Orientation="Horizontal">
@@ -245,15 +298,15 @@
                                                             <Border x:Name="HomeProgress" CornerRadius="1.5" Width="0" HorizontalAlignment="Left" Background="{DynamicResource AccentBrush}"/>
                                                         </Grid>
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Button Style="{StaticResource IconButton}" Content="&#xE892;" ToolTip="Предыдущий" Click="Previous_Click" Margin="0,0,4,0"/>
-                                                            <Button x:Name="HomePlay" Style="{StaticResource IconButton}" FontSize="20" Content="&#xE768;" ToolTip="Пауза" Click="PlayPause_Click" Margin="0,0,4,0"/>
-                                                            <Button Style="{StaticResource IconButton}" Content="&#xE893;" ToolTip="Следующий" Click="Next_Click"/>
+                                                            <Button Style="{StaticResource IconButton}" Content="&#xE892;" ToolTip="{DynamicResource T.music.prev}" Click="Previous_Click" Margin="0,0,4,0"/>
+                                                            <Button x:Name="HomePlay" Style="{StaticResource IconButton}" FontSize="20" Content="&#xE768;" Click="PlayPause_Click" Margin="0,0,4,0"/>
+                                                            <Button Style="{StaticResource IconButton}" Content="&#xE893;" ToolTip="{DynamicResource T.music.next}" Click="Next_Click"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Grid>
                                                 <StackPanel x:Name="HomeEmpty" VerticalAlignment="Center" HorizontalAlignment="Center" Height="72" Visibility="Collapsed">
                                                     <TextBlock Text="&#xE8D6;" Style="{StaticResource Glyph}" FontSize="24" Foreground="{DynamicResource FaintBrush}" HorizontalAlignment="Center" Margin="0,12,0,8"/>
-                                                    <TextBlock Text="Включи музыку в любом плеере" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{DynamicResource T.music.hint}" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
@@ -306,16 +359,16 @@
                                                         <Ellipse x:Name="ProgressThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
                                                     </Grid>
                                                 </Grid>
-                                                <Grid Margin="0,0,0,0">
+                                                <Grid>
                                                     <TextBlock x:Name="TimeLeft" Margin="6,0,0,0" FontSize="11" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FaintBrush}" Text="0:00"/>
                                                     <TextBlock x:Name="TimeRight" FontSize="11" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FaintBrush}" Text="-0:00"
                                                                HorizontalAlignment="Right" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonUp="TimeRight_Click"/>
                                                 </Grid>
 
                                                 <StackPanel x:Name="MusicButtons" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                    <Button Style="{StaticResource IconButton}" Width="36" Height="36" FontSize="18" Content="&#xE892;" ToolTip="Предыдущий" Click="Previous_Click"/>
-                                                    <Button x:Name="MusicPlay" Style="{StaticResource PlayButton}" Content="&#xE768;" ToolTip="Пауза" Click="PlayPause_Click" Margin="16,0"/>
-                                                    <Button Style="{StaticResource IconButton}" Width="36" Height="36" FontSize="18" Content="&#xE893;" ToolTip="Следующий" Click="Next_Click"/>
+                                                    <Button Style="{StaticResource IconButton}" Width="36" Height="36" FontSize="18" Content="&#xE892;" ToolTip="{DynamicResource T.music.prev}" Click="Previous_Click"/>
+                                                    <Button x:Name="MusicPlay" Style="{StaticResource PlayButton}" Content="&#xE768;" Click="PlayPause_Click" Margin="16,0"/>
+                                                    <Button Style="{StaticResource IconButton}" Width="36" Height="36" FontSize="18" Content="&#xE893;" ToolTip="{DynamicResource T.music.next}" Click="Next_Click"/>
                                                 </StackPanel>
 
                                                 <!-- Volume of the playing app (or the system) -->
@@ -332,7 +385,7 @@
                                                           MouseWheel="Volume_MouseWheel" MouseEnter="Volume_MouseEnter" MouseLeave="Volume_MouseLeave">
                                                         <Grid x:Name="VolumeInner" Margin="6,0">
                                                             <Border x:Name="VolumeBg" Height="4" CornerRadius="2" Background="{DynamicResource FaintBrush}" Opacity="0.35" VerticalAlignment="Center"/>
-                                                            <Border x:Name="VolumeFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                                            <Border x:Name="VolumeFill" Height="4" CornerRadius="2" Width="0" HorizontalAlignment="Left" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                                             <Ellipse x:Name="VolumeThumb" Width="12" Height="12" Fill="{DynamicResource FgBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Opacity="0" Margin="-6,0,0,0"/>
                                                         </Grid>
                                                     </Grid>
@@ -344,7 +397,7 @@
 
                                         <!-- Lyrics preview: current line + next line -->
                                         <StackPanel x:Name="LyricsPreview" Grid.Row="1" Margin="0,12,0,0" Visibility="Collapsed" ClipToBounds="True" Height="40">
-                                            <TextBlock x:Name="PreviewCurrent" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}" TextTrimming="CharacterEllipsis">
+                                            <TextBlock x:Name="PreviewCurrent" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
                                                 <TextBlock.RenderTransform>
                                                     <TranslateTransform x:Name="PreviewShift"/>
                                                 </TextBlock.RenderTransform>
@@ -353,97 +406,168 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <!-- ===== Calendar ===== -->
+                                    <!-- ===== Calendar: Календарь / Задачи / Таймер ===== -->
                                     <Grid x:Name="CalendarPage" Visibility="Collapsed" Opacity="0">
                                         <Grid.RenderTransform>
                                             <TranslateTransform/>
                                         </Grid.RenderTransform>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="55*"/>
-                                            <ColumnDefinition Width="16"/>
-                                            <ColumnDefinition Width="45*"/>
-                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel x:Name="CalModes" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+                                            <Button x:Name="ModeCalendar" Style="{StaticResource Chip}" Content="{DynamicResource T.cal.mode.calendar}" Click="CalMode_Click" Tag="calendar" Height="26"/>
+                                            <Button x:Name="ModeTasks" Style="{StaticResource Chip}" Content="{DynamicResource T.cal.mode.tasks}" Click="CalMode_Click" Tag="tasks" Height="26"/>
+                                            <Button x:Name="ModeTimer" Style="{StaticResource Chip}" Content="{DynamicResource T.cal.mode.timer}" Click="CalMode_Click" Tag="timer" Height="26"/>
+                                        </StackPanel>
 
-                                        <!-- month -->
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="28"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock x:Name="MonthTitle" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <Button x:Name="TodayButton" Style="{StaticResource FlatButton}" FontSize="12" Height="28" Content="Сегодня"
-                                                        Foreground="{DynamicResource SubBrush}" Click="Today_Click" Visibility="Collapsed" Margin="0,0,2,0"/>
-                                                <Button Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="12" Content="&#xE76B;" ToolTip="Предыдущий месяц" Click="PrevMonth_Click"/>
-                                                <Button Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="12" Content="&#xE76C;" ToolTip="Следующий месяц" Click="NextMonth_Click"/>
-                                            </StackPanel>
-                                            <UniformGrid x:Name="WeekdaysRow" Grid.Row="1" Columns="7" Rows="1" Margin="0,4,0,2" Width="224" HorizontalAlignment="Left"/>
-                                            <Grid x:Name="MonthHost" Grid.Row="2" ClipToBounds="True" Width="224" Height="168" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                  Background="Transparent" MouseWheel="Month_MouseWheel"/>
-                                        </Grid>
+                                        <Grid x:Name="CalendarView" Grid.Row="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="55*"/>
+                                                <ColumnDefinition Width="16"/>
+                                                <ColumnDefinition Width="45*"/>
+                                            </Grid.ColumnDefinitions>
 
-                                        <!-- day list / event form -->
-                                        <Grid Grid.Column="2" ClipToBounds="True">
-                                            <Grid x:Name="DayListView">
-                                                <Grid.RenderTransform>
-                                                    <TranslateTransform x:Name="DayListShift"/>
-                                                </Grid.RenderTransform>
+                                            <!-- month -->
+                                            <Grid>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="28"/>
-                                                    <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
                                                 </Grid.RowDefinitions>
-                                                <TextBlock x:Name="DayTitle" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                                <ScrollViewer x:Name="DayScroll" Grid.Row="1" Style="{StaticResource ThinScroll}" Margin="0,2,-8,8">
-                                                    <StackPanel x:Name="DayEvents"/>
-                                                </ScrollViewer>
-                                                <StackPanel x:Name="DayEmpty" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
-                                                    <TextBlock Text="&#xE787;" Style="{StaticResource Glyph}" FontSize="24" Foreground="{DynamicResource FaintBrush}" HorizontalAlignment="Center"/>
-                                                    <TextBlock Text="Нет событий" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                                <TextBlock x:Name="MonthTitle" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Button x:Name="TodayButton" Style="{StaticResource FlatButton}" FontSize="12" Height="28" Content="{DynamicResource T.cal.today}"
+                                                            Foreground="{DynamicResource SubBrush}" Click="Today_Click" Visibility="Collapsed" Margin="0,0,2,0"/>
+                                                    <Button Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="12" Content="&#xE76B;" ToolTip="{DynamicResource T.cal.prevmonth}" Click="PrevMonth_Click"/>
+                                                    <Button Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="12" Content="&#xE76C;" ToolTip="{DynamicResource T.cal.nextmonth}" Click="NextMonth_Click"/>
                                                 </StackPanel>
-                                                <Button Grid.Row="2" Style="{StaticResource PlateButton}" Click="AddEvent_Click">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE710;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource FgBrush}" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="Событие" FontSize="13" Foreground="{DynamicResource FgBrush}"/>
-                                                    </StackPanel>
-                                                </Button>
+                                                <UniformGrid x:Name="WeekdaysRow" Grid.Row="1" Columns="7" Rows="1" Margin="0,4,0,2" Width="224" HorizontalAlignment="Left"/>
+                                                <Grid x:Name="MonthHost" Grid.Row="2" ClipToBounds="True" Width="224" Height="168" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                      Background="Transparent" MouseWheel="Month_MouseWheel"/>
                                             </Grid>
 
-                                            <ScrollViewer x:Name="EventForm" Style="{StaticResource ThinScroll}" Visibility="Collapsed" Margin="0,0,-8,0"
-                                                          PreviewKeyDown="EventForm_PreviewKeyDown">
-                                                <ScrollViewer.RenderTransform>
-                                                    <TranslateTransform x:Name="EventFormShift"/>
-                                                </ScrollViewer.RenderTransform>
-                                                <StackPanel>
-                                                    <TextBox x:Name="FormTitle" Style="{StaticResource Field}" Tag="Название" MaxLength="80"/>
-                                                    <Grid Margin="0,8,0,0">
+                                            <!-- day list / event form -->
+                                            <Grid Grid.Column="2" ClipToBounds="True">
+                                                <Grid x:Name="DayListView">
+                                                    <Grid.RenderTransform>
+                                                        <TranslateTransform x:Name="DayListShift"/>
+                                                    </Grid.RenderTransform>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="28"/>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock x:Name="DayTitle" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <ScrollViewer x:Name="DayScroll" Grid.Row="1" Style="{StaticResource ThinScroll}" Margin="0,2,-8,8">
+                                                        <StackPanel x:Name="DayEvents"/>
+                                                    </ScrollViewer>
+                                                    <StackPanel x:Name="DayEmpty" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                                        <TextBlock Text="&#xE787;" Style="{StaticResource Glyph}" FontSize="24" Foreground="{DynamicResource FaintBrush}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{DynamicResource T.cal.noevents}" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Row="2" Style="{StaticResource PlateButton}" Click="AddEvent_Click">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Button Style="{StaticResource IconButton}" Width="26" Height="28" FontSize="11" Content="&#xE76B;" Click="FormDatePrev_Click"/>
-                                                            <TextBlock x:Name="FormDate" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"
-                                                                       MinWidth="96" TextAlignment="Center"/>
-                                                            <Button Style="{StaticResource IconButton}" Width="26" Height="28" FontSize="11" Content="&#xE76C;" Click="FormDateNext_Click"/>
+                                                            <TextBlock Text="&#xE710;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource FgBrush}" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="{DynamicResource T.cal.event}" FontSize="13"/>
                                                         </StackPanel>
-                                                    </Grid>
-                                                    <Grid Margin="0,8,0,0">
-                                                        <TextBox x:Name="FormTime" Style="{StaticResource Field}" Tag="14:30" Width="76" HorizontalAlignment="Left" MaxLength="5"/>
-                                                        <Button x:Name="FormAllDay" Style="{StaticResource Chip}" Content="Весь день" HorizontalAlignment="Right" Margin="0" Height="30"
-                                                                Click="FormAllDay_Click"/>
-                                                    </Grid>
-                                                    <StackPanel x:Name="FormColors" Orientation="Horizontal" Margin="2,12,0,0"/>
-                                                    <TextBlock Text="Напомнить" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="0,12,0,6"/>
-                                                    <WrapPanel x:Name="FormReminders"/>
-                                                    <Grid Margin="0,6,0,4">
-                                                        <Button x:Name="FormDelete" Style="{StaticResource FlatButton}" Height="30" Foreground="#FFFF453A" FontSize="12"
-                                                                HorizontalAlignment="Left" Content="Удалить" Click="FormDelete_Click" Visibility="Collapsed"/>
-                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                            <Button Style="{StaticResource FlatButton}" Height="30" FontSize="12" Foreground="{DynamicResource SubBrush}"
-                                                                    Content="Отмена" Click="FormCancel_Click" Margin="0,0,4,0"/>
-                                                            <Button Style="{StaticResource AccentButton}" FontSize="12" Content="Сохранить" Click="FormSave_Click"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </StackPanel>
+                                                    </Button>
+                                                </Grid>
+
+                                                <ScrollViewer x:Name="EventForm" Style="{StaticResource ThinScroll}" Visibility="Collapsed" Margin="0,0,-8,0"
+                                                              PreviewKeyDown="EventForm_PreviewKeyDown">
+                                                    <ScrollViewer.RenderTransform>
+                                                        <TranslateTransform x:Name="EventFormShift"/>
+                                                    </ScrollViewer.RenderTransform>
+                                                    <StackPanel>
+                                                        <TextBox x:Name="FormTitle" Style="{StaticResource Field}" Tag="{DynamicResource T.cal.form.title}" MaxLength="80"/>
+                                                        <Grid Margin="0,8,0,0">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Button Style="{StaticResource IconButton}" Width="26" Height="28" FontSize="11" Content="&#xE76B;" Click="FormDatePrev_Click"/>
+                                                                <TextBlock x:Name="FormDate" FontSize="13" VerticalAlignment="Center" MinWidth="96" TextAlignment="Center"/>
+                                                                <Button Style="{StaticResource IconButton}" Width="26" Height="28" FontSize="11" Content="&#xE76C;" Click="FormDateNext_Click"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                        <Grid Margin="0,8,0,0">
+                                                            <TextBox x:Name="FormTime" Style="{StaticResource Field}" Tag="14:30" Width="76" HorizontalAlignment="Left" MaxLength="5"/>
+                                                            <Button x:Name="FormAllDay" Style="{StaticResource Chip}" Content="{DynamicResource T.cal.allday}" HorizontalAlignment="Right" Margin="0" Height="30"
+                                                                    Click="FormAllDay_Click"/>
+                                                        </Grid>
+                                                        <StackPanel x:Name="FormColors" Orientation="Horizontal" Margin="2,12,0,0"/>
+                                                        <TextBlock Text="{DynamicResource T.cal.remind}" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="0,12,0,6"/>
+                                                        <WrapPanel x:Name="FormReminders"/>
+                                                        <Grid Margin="0,6,0,4">
+                                                            <Button x:Name="FormDelete" Style="{StaticResource FlatButton}" Height="30" Foreground="#FFFF453A" FontSize="12"
+                                                                    HorizontalAlignment="Left" Click="FormDelete_Click" Visibility="Collapsed"/>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                                <Button Style="{StaticResource FlatButton}" Height="30" FontSize="12" Foreground="{DynamicResource SubBrush}"
+                                                                        Content="{DynamicResource T.common.cancel}" Click="FormCancel_Click" Margin="0,0,4,0"/>
+                                                                <Button Style="{StaticResource AccentButton}" FontSize="12" Content="{DynamicResource T.common.save}" Click="FormSave_Click"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </ScrollViewer>
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- tasks -->
+                                        <Grid x:Name="TasksView" Grid.Row="1" Visibility="Collapsed">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <ScrollViewer x:Name="TasksScroll" Style="{StaticResource ThinScroll}" Margin="0,0,-8,8">
+                                                <StackPanel x:Name="TasksPanel"/>
                                             </ScrollViewer>
+                                            <StackPanel x:Name="TasksEmpty" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                                <TextBlock Text="&#xE73A;" Style="{StaticResource Glyph}" FontSize="24" Foreground="{DynamicResource FaintBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{DynamicResource T.tasks.empty}" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                            </StackPanel>
+                                            <Grid Grid.Row="1" PreviewKeyDown="TaskInput_PreviewKeyDown">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="TaskTitle" Style="{StaticResource Field}" Tag="{DynamicResource T.tasks.new}" MaxLength="100"/>
+                                                <TextBox x:Name="TaskTime" Grid.Column="1" Style="{StaticResource Field}" Tag="{DynamicResource T.tasks.time}" Width="96" MaxLength="5" Margin="8,0,0,0"
+                                                         ToolTip="{DynamicResource T.tasks.time.tip}"/>
+                                                <Button Grid.Column="2" Style="{StaticResource AccentButton}" Height="32" Margin="8,0,0,0" Click="AddTask_Click">
+                                                    <TextBlock Text="&#xE710;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource AccentFgBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- timer -->
+                                        <Grid x:Name="TimerView" Grid.Row="1" Visibility="Collapsed">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid Width="168" Height="168" VerticalAlignment="Center" Cursor="Hand" Background="Transparent" MouseLeftButtonUp="TimerFace_Click">
+                                                <controls:ProgressRing x:Name="TimerRing" Thickness="6" Width="168" Height="168"/>
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock x:Name="TimerText" FontFamily="{DynamicResource DisplayFont}" FontSize="36" FontWeight="{DynamicResource DisplayWeight}"
+                                                               Typography.NumeralAlignment="Tabular" HorizontalAlignment="Center" Text="05:00"/>
+                                                    <TextBlock x:Name="TimerState" FontSize="12" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{DynamicResource T.timer.quick}" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="0,0,0,6"/>
+                                                <WrapPanel x:Name="TimerQuick"/>
+                                                <TextBlock Text="{DynamicResource T.timer.custom}" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="0,8,0,6"/>
+                                                <StackPanel Orientation="Horizontal" PreviewKeyDown="TimerInput_PreviewKeyDown">
+                                                    <TextBox x:Name="TimerInput" Style="{StaticResource Field}" Tag="{DynamicResource T.timer.input}" Width="110" MaxLength="8"/>
+                                                    <Button Style="{StaticResource AccentButton}" Height="32" Margin="8,0,0,0" Content="{DynamicResource T.timer.start}" Click="TimerStartCustom_Click"/>
+                                                </StackPanel>
+                                                <StackPanel x:Name="TimerControls" Orientation="Horizontal" Margin="0,14,0,0" Visibility="Collapsed">
+                                                    <Button x:Name="TimerPauseButton" Style="{StaticResource PlateButton}" Click="TimerPause_Click" Margin="0,0,8,0"/>
+                                                    <Button Style="{StaticResource PlateButton}" Click="TimerStop_Click">
+                                                        <TextBlock Text="{DynamicResource T.timer.stop}" Foreground="#FFFF453A"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </StackPanel>
                                         </Grid>
                                     </Grid>
 
@@ -455,8 +579,8 @@
 
                                         <StackPanel x:Name="WeatherEmpty" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
                                             <TextBlock Text="&#xE81D;" Style="{StaticResource Glyph}" FontSize="32" Foreground="{DynamicResource FaintBrush}" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="Выбери город, чтобы видеть погоду" FontSize="13" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center" Margin="0,12,0,12"/>
-                                            <Button Style="{StaticResource AccentButton}" Content="Выбрать" HorizontalAlignment="Center" Click="ChoosePlace_Click"/>
+                                            <TextBlock Text="{DynamicResource T.weather.choose.hint}" FontSize="13" Foreground="{DynamicResource SubBrush}" HorizontalAlignment="Center" Margin="0,12,0,12"/>
+                                            <Button Style="{StaticResource AccentButton}" Content="{DynamicResource T.weather.choose}" HorizontalAlignment="Center" Click="ChoosePlace_Click"/>
                                         </StackPanel>
 
                                         <Grid x:Name="WeatherContent">
@@ -469,17 +593,16 @@
                                             </Grid.RowDefinitions>
 
                                             <Button Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="6,0" Margin="-6,0,0,0" Click="ChoosePlace_Click"
-                                                    ToolTip="Выбрать место">
+                                                    ToolTip="{DynamicResource T.weather.place.tip}">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="&#xE707;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="0,0,6,0"/>
-                                                    <TextBlock x:Name="WeatherPlace" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}"
-                                                               TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+                                                    <TextBlock x:Name="WeatherPlace" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="360"/>
                                                 </StackPanel>
                                             </Button>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                                 <TextBlock x:Name="WeatherUpdated" FontSize="11" Foreground="{DynamicResource FaintBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                 <Button x:Name="WeatherRefresh" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="12" Content="&#xE72C;"
-                                                        ToolTip="Обновить" Click="WeatherRefresh_Click"/>
+                                                        ToolTip="{DynamicResource T.weather.refresh}" Click="WeatherRefresh_Click"/>
                                             </StackPanel>
 
                                             <!-- now -->
@@ -492,19 +615,26 @@
                                                 </Grid.ColumnDefinitions>
                                                 <controls:WeatherIcon x:Name="NowIcon" Width="48" Height="48" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
                                                 <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock x:Name="NowTemp" FontFamily="{DynamicResource DisplayFont}" FontSize="44" FontWeight="SemiBold"
-                                                               Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource FgBrush}" Margin="0,-8,0,-4"/>
+                                                    <TextBlock x:Name="NowTemp" FontFamily="{DynamicResource DisplayFont}" FontSize="40" FontWeight="{DynamicResource DisplayWeight}"
+                                                               Typography.NumeralAlignment="Tabular" Margin="0,-8,0,-4"/>
                                                     <TextBlock x:Name="NowDesc" FontSize="13" Foreground="{DynamicResource SubBrush}"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="3" VerticalAlignment="Center">
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
                                                         <controls:WeatherIcon Icon="Thermo" Width="14" Height="14" Foreground="{DynamicResource SubBrush}" Mono="True"/>
                                                         <TextBlock x:Name="NowFeels" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="6,0,0,0"/>
                                                     </StackPanel>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                        <controls:WeatherIcon Icon="Wind" Width="14" Height="14" Foreground="{DynamicResource SubBrush}" Mono="True"/>
-                                                        <TextBlock x:Name="NowWind" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="6,0,0,0"/>
+                                                    <StackPanel Orientation="Horizontal" ToolTip="{DynamicResource T.wind.arrow.tip}" Background="Transparent">
+                                                        <!-- arrow points where the wind blows to -->
+                                                        <Path x:Name="WindArrow" Width="14" Height="14" Stretch="Uniform" Fill="{DynamicResource FgBrush}" RenderTransformOrigin="0.5,0.5"
+                                                              Data="M7,0 L13,13 L7,10 L1,13 Z">
+                                                            <Path.RenderTransform>
+                                                                <RotateTransform x:Name="WindArrowAngle"/>
+                                                            </Path.RenderTransform>
+                                                        </Path>
+                                                        <TextBlock x:Name="NowWind" FontSize="12" Margin="6,0,0,0"/>
                                                     </StackPanel>
+                                                    <TextBlock x:Name="NowGusts" FontSize="11" Foreground="{DynamicResource FaintBrush}" Margin="20,0,0,3"/>
                                                     <StackPanel Orientation="Horizontal">
                                                         <controls:WeatherIcon Icon="Drop" Width="14" Height="14" Foreground="{DynamicResource SubBrush}" Mono="True"/>
                                                         <TextBlock x:Name="NowHumidity" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="6,0,0,0"/>
@@ -534,15 +664,15 @@
                                             <TranslateTransform/>
                                         </ScrollViewer.RenderTransform>
                                         <StackPanel>
-                                            <TextBlock Text="ВНЕШНИЙ ВИД" Style="{StaticResource SectionHeader}"/>
+                                            <TextBlock Text="{DynamicResource T.qs.appearance}" Style="{StaticResource SectionHeader}"/>
                                             <UniformGrid x:Name="ThemePanel" Columns="3" HorizontalAlignment="Left" Margin="0,0,0,8"/>
 
-                                            <TextBlock Text="МУЗЫКА" Style="{StaticResource SectionHeader}" Margin="0,8,0,8"/>
+                                            <TextBlock Text="{DynamicResource T.qs.music}" Style="{StaticResource SectionHeader}" Margin="0,8,0,8"/>
                                             <Button x:Name="LyricsRow" Style="{StaticResource SettingRow}" Click="LyricsRow_Click">
                                                 <Grid>
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="&#xE8D2;" Style="{StaticResource Glyph}" FontSize="16" Foreground="{DynamicResource SubBrush}" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="Текст песни под островом" FontSize="13" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{DynamicResource T.qs.lyrics}" FontSize="13" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <Border x:Name="LyricsToggle" Width="40" Height="22" CornerRadius="11" HorizontalAlignment="Right">
                                                         <Ellipse x:Name="LyricsKnob" Width="18" Height="18" HorizontalAlignment="Left" Margin="2,0,0,0">
@@ -556,7 +686,7 @@
                                             <Button Style="{StaticResource PlateButton}" Height="40" Margin="0,12,0,0" Click="AllSettings_Click">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" FontSize="15" Foreground="{DynamicResource FgBrush}" Margin="0,0,10,0"/>
-                                                    <TextBlock Text="Все настройки" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource FgBrush}"/>
+                                                    <TextBlock Text="{DynamicResource T.qs.all}" FontSize="13" FontWeight="SemiBold"/>
                                                 </StackPanel>
                                             </Button>
 
@@ -565,7 +695,7 @@
                                                 <Button x:Name="QuitButton" Style="{StaticResource FlatButton}" Height="30" HorizontalAlignment="Right" Padding="10,0" Click="Quit_Click">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="&#xE711;" Style="{StaticResource Glyph}" FontSize="13" Foreground="#FFFF453A" Margin="0,0,6,0"/>
-                                                        <TextBlock Text="Выйти" FontSize="13" Foreground="#FFFF453A" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{DynamicResource T.common.quit}" FontSize="13" Foreground="#FFFF453A" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Button>
                                             </Grid>
@@ -573,6 +703,9 @@
                                     </ScrollViewer>
                                 </Grid>
                             </Grid>
+
+                            <!-- drag-and-drop highlight (file shelf) -->
+                            <Border x:Name="DropRing" BorderThickness="2" BorderBrush="{DynamicResource AccentBrush}" Opacity="0" IsHitTestVisible="False"/>
                         </Grid>
                     </Border>
                 </Border>
@@ -583,7 +716,7 @@
                     Background="{DynamicResource MenuBrush}" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="&#xE74A;" Style="{StaticResource Glyph}" FontSize="12" Foreground="{DynamicResource FgBrush}" Margin="0,0,8,0"/>
-                    <TextBlock Text="Наведи на меня, чтобы открыть" FontSize="13" Foreground="{DynamicResource FgBrush}"/>
+                    <TextBlock Text="{DynamicResource T.firstrun}" FontSize="13"/>
                 </StackPanel>
             </Border>
 
@@ -601,7 +734,7 @@
                     <DropShadowEffect x:Name="StripShadow" BlurRadius="20" ShadowDepth="4" Direction="270" Opacity="0.4" Color="Black"/>
                 </Border.Effect>
                 <Grid>
-                    <TextBlock x:Name="LyricText" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="568" Foreground="{DynamicResource FgBrush}"
+                    <TextBlock x:Name="LyricText" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="568"
                                FontSize="15" FontWeight="SemiBold" LineStackingStrategy="BlockLineHeight" LineHeight="20" MaxHeight="40">
                         <TextBlock.RenderTransform>
                             <TranslateTransform x:Name="LyricShift"/>

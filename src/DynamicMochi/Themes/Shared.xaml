@@ -21,6 +21,8 @@
         <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
         <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
         <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
+        <!-- clock font weight: Unbounded SemiBold, Manrope ExtraBold, Onest Bold… (App.ApplyFont) -->
+        <FontWeight x:Key="DisplayWeight">SemiBold</FontWeight>
 
         <!-- Themed tooltip -->
         <Style TargetType="ToolTip">
@@ -118,9 +120,15 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="Transparent" CornerRadius="10">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="10">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- hover: the icon takes the theme accent -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="TextElement.Foreground" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -368,7 +376,7 @@
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource FaintBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 

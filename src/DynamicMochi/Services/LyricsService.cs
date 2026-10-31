@@ -207,7 +207,7 @@ public static class LyricsService
         return new[] { "speed", "sped", "slowed", "nightcore", "ускор", "замедл", "reverb" }.Any(t.Contains);
     }
 
-    private static bool SameSong(JsonElement item, string title)
+    internal static bool SameSong(JsonElement item, string title)
     {
         string want = Norm(CleanTitle(title));
         string got = Norm(CleanTitle(Str(item, "trackName") ?? ""));
@@ -217,7 +217,7 @@ public static class LyricsService
         return Math.Min(got.Length, want.Length) >= 10 && (got.Contains(want) || want.Contains(got));
     }
 
-    private static bool SameArtist(JsonElement item, string artist)
+    internal static bool SameArtist(JsonElement item, string artist)
     {
         string got = Norm(Str(item, "artistName") ?? "");
         if (got.Length == 0) return false;

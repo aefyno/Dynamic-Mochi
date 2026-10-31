@@ -16,13 +16,15 @@ public partial class IslandWindow
 {
     private readonly MediaService _media = new();
     private readonly VolumeService _volume = new();
-    private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    private readonly DispatcherTimer _pollTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly DispatcherTimer _eqTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private static readonly Random Rng = new();
 
     private TrackSnapshot? _track;
     private Color? _artColor;
     private string _shownKey = "";
+    private int _shownArt = -1;
+    private string _capsuleLine = "";
     private bool _hasArt;
     private bool _polling;
     private bool _showTotal;
@@ -99,7 +101,7 @@ public partial class IslandWindow
         MiniArtBox.Opacity = playing ? 1 : 0.7;
 
         string playIcon = playing ? "" : "";
-        string playTip = playing ? "Пауза" : "Играть";
+        string playTip = Loc.T(playing ? "music.pause" : "music.play");
         if (MusicPlay.Content as string != playIcon)
         {
             SwapIcon(MusicPlay, playIcon, !_loading);
@@ -114,18 +116,19 @@ public partial class IslandWindow
         ProgressTrack.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
         SourceRow.Visibility = has && !string.IsNullOrEmpty(t!.Source) ? Visibility.Visible : Visibility.Collapsed;
 
-        HintText.Text = !has ? "Тишина" : playing ? (string.IsNullOrEmpty(t!.Source) ? "Играет" : "Играет в " + t.Source) : "На паузе";
+        HintText.Text = !has ? Loc.T("music.silence") : playing ? (string.IsNullOrEmpty(t!.Source) ? Loc.T("music.playing") : Loc.F("music.playing.in", t.Source)) : Loc.T("music.paused");
 
         if (t == null)
         {
             if (_shownKey != "" || _loading)
             {
                 _shownKey = "";
+                _shownArt = -1;
                 _hasArt = false;
                 _artColor = null;
                 MiniTitle.Text = "";
-                MusicTitle.Text = "Ничего не играет";
-                MusicArtist.Text = "Включи музыку в любом плеере";
+                MusicTitle.Text = Loc.T("music.none");
+                MusicArtist.Text = Loc.T("music.hint");
                 TimeLeft.Text = "";
                 TimeRight.Text = "";
                 SetArt(null, animate: !_loading);
@@ -136,7 +139,7 @@ public partial class IslandWindow
         }
 
         bool newTrack = t.Key != _shownKey;
-        if (newTrack || (!_hasArt && t.Thumbnail != null))
+        if (newTrack)
         {
             _shownKey = t.Key;
             MiniTitle.Text = t.Title;
@@ -145,15 +148,25 @@ public partial class IslandWindow
             MusicArtist.Text = t.Artist;
             HomeArtist.Text = t.Artist;
             SourceText.Text = t.Source;
+            if (!_loading) Squish();
+            RefreshVolume(force: true);
+        }
+        // the cover follows the service's art version: a late or corrected cover crossfades in (220 ms),
+        // and a new track without a cover shows the placeholder, never the previous picture
+        if (newTrack || t.ArtVersion != _shownArt)
+        {
+            _shownArt = t.ArtVersion;
             var img = ToImage(t.Thumbnail);
-            _hasArt = img != null;
-            _artColor = ArtColor.Dominant(t.Thumbnail);
-            SetArt(img, animate: !_loading);
-            UpdateTint(600);
-            if (newTrack && !_loading) Squish();
-            if (newTrack) RefreshVolume(force: true);
+            if (newTrack || img != null || _hasArt)
+            {
+                _hasArt = img != null;
+                _artColor = ArtColor.Dominant(t.Thumbnail);
+                SetArt(img, animate: !_loading);
+                UpdateTint(600);
+            }
         }
         UpdateStrip();
+        UpdateCapsuleLine();
     }
 
     /// <summary>Crossfade the artwork into all three slots; the big one "presses in" 0.96 → 1.</summary>
@@ -228,6 +241,7 @@ public partial class IslandWindow
 
     private async void PlayPause_Click(object sender, RoutedEventArgs e)
     {
+        if (!_media.HasSession) return;   // buttons talk only to the shown player
         if (_track != null)
         {
             var now = DateTime.UtcNow;
@@ -424,6 +438,7 @@ public partial class IslandWindow
             ShowVolume(_volume.Muted);   // first layout pass: track width is known only now
 
         UpdateLyricLine(local.TimeOfDay.TotalSeconds, pos);
+        if (!_expanded && CapsuleProgress.Visibility == Visibility.Visible) UpdateCapsuleProgress();
     }
 
     /// <summary>Settings: system or player volume, equalizer, lyric size, clock next to the music.</summary>
@@ -434,7 +449,12 @@ public partial class IslandWindow
         var eq = _settings.ShowEqualizer ? Visibility.Visible : Visibility.Collapsed;
         EqBars.Visibility = eq;
         MinEqBars.Visibility = eq;
+        // "clock with music" works in both views (SPEC-v1.4 §14); a running timer always shows
+        var clock = _settings.ClockWithMusic || _timerRunning ? Visibility.Visible : Visibility.Collapsed;
         MinMusicClock.Visibility = _settings.ClockWithMusic ? Visibility.Visible : Visibility.Collapsed;
+        MiniClock.Visibility = clock;
+        MiniDivider.Visibility = clock == Visibility.Visible && _settings.ShowEqualizer ? Visibility.Visible : Visibility.Collapsed;
+        MiniLyric.FontSize = Math.Clamp(_settings.LyricsSize - 2.5, 11, 15);
         double size = _settings.LyricsSize;
         LyricText.FontSize = size;
         LyricText.LineHeight = size + 5;
@@ -474,7 +494,9 @@ public partial class IslandWindow
             _noDurationSince = null;
             _shownIndex = int.MinValue;
             _previewIndex = int.MinValue;
+            _capsuleIndex = int.MinValue;
             UpdateStrip();
+            UpdateCapsuleLine();
         }
 
         // Wait for the duration so we do not match the wrong song; after 5 s search without it.
@@ -513,6 +535,7 @@ public partial class IslandWindow
                     _lyrics = result;
                     _shownIndex = int.MinValue;
                     _previewIndex = int.MinValue;
+                    _capsuleIndex = int.MinValue;
                     if (_expanded && _page == "music")
                         AnimateSize(ExpandedW, PageHeight("music"), 220, new CubicEase { EasingMode = EasingMode.EaseInOut });
                 }
@@ -525,9 +548,12 @@ public partial class IslandWindow
         });
     }
 
+    /// <summary>The line under the capsule: "under the island", or "in the island" while the minimal view has no room for it.</summary>
+    private bool LyricsUnder => _settings.LyricsPlace == 1 || (_settings.LyricsPlace == 0 && !DetailedCollapsed);
+
     private void UpdateStrip()
     {
-        bool show = _settings.ShowLyrics && !_expanded && _activity == null && _track?.IsPlaying == true && HasLyricsForTrack;
+        bool show = LyricsUnder && !_expanded && _notice == null && _track?.IsPlaying == true && HasLyricsForTrack;
         if (show && LyricsStrip.Visibility != Visibility.Visible)
         {
             LyricsStrip.Visibility = Visibility.Visible;
@@ -574,6 +600,7 @@ public partial class IslandWindow
 
     private void UpdateLyricLine(double t, double pos)
     {
+        if (_lyrics != null && _track != null && LyricsInCapsule) UpdateCapsuleLyric(pos);
         if (_lyrics == null || _track == null || LyricsStrip.Visibility != Visibility.Visible) return;
         int index = LineAt(pos, out bool longBreak);
         bool dots = index < 0 || longBreak;
@@ -611,6 +638,7 @@ public partial class IslandWindow
         bool first = true;
         foreach (var (text, adlib) in SplitParts(line))
         {
+            if (adlib && !_settings.LyricsBacking) continue;
             if (adlib)
             {
                 var run = new Run((first ? "" : " ") + "(" + text.Trim() + ")") { FontSize = 13, FontStyle = FontStyles.Italic, FontWeight = FontWeights.Normal };
@@ -642,6 +670,63 @@ public partial class IslandWindow
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
         PreviewCurrent.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
         PreviewShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, dur) { EasingFunction = ease });
+    }
+
+    // ----- the second line of the collapsed capsule: lyric line, else the artist (+ progress along the bottom edge)
+
+    private bool LyricsInCapsule => _settings.LyricsPlace == 0 && DetailedCollapsed && HasLyricsForTrack && _track?.IsPlaying == true;
+
+    private int _capsuleIndex = int.MinValue;
+
+    /// <summary>What the second line shows and whether the thin progress bar is visible (SPEC-v1.4 §4, §13).</summary>
+    private void UpdateCapsuleLine()
+    {
+        if (_track == null) { CapsuleProgress.Visibility = Visibility.Collapsed; return; }
+        bool lyric = LyricsInCapsule;
+        if (!lyric)
+        {
+            _capsuleIndex = int.MinValue;
+            string artist = _settings.LyricsArtistFallback || _settings.LyricsPlace != 0 ? _track.Artist : "";
+            SetCapsuleLine(artist, animate: false);
+        }
+        MiniLyricBox.Visibility = _capsuleLine.Length > 0 || lyric ? Visibility.Visible : Visibility.Collapsed;
+        bool progress = !lyric && DetailedCollapsed && _notice == null && _track.DurationSec > 0;
+        CapsuleProgress.Visibility = progress ? Visibility.Visible : Visibility.Collapsed;
+        if (progress) UpdateCapsuleProgress();
+    }
+
+    private void UpdateCapsuleProgress()
+    {
+        var t = _track;
+        if (t == null || t.DurationSec <= 0) return;
+        double f = Math.Clamp(t.PositionAt(DateTime.UtcNow) / t.DurationSec, 0, 1);
+        CapsuleProgress.Width = Math.Max(0, Capsule.ActualWidth * f);
+    }
+
+    private void UpdateCapsuleLyric(double pos)
+    {
+        int index = LineAt(pos, out bool longBreak);
+        if (index < 0 || longBreak) index = -1;
+        if (index == _capsuleIndex) return;
+        _capsuleIndex = index;
+        string text = index < 0 ? "…" : string.Join(" ", SplitParts(_lyrics!.Lines[index])
+            .Where(p => !p.Adlib || _settings.LyricsBacking)
+            .Select(p => p.Adlib ? "(" + p.Text.Trim() + ")" : p.Text.Trim()));
+        SetCapsuleLine(text.Length > 0 ? text : "…", animate: !_loading);
+        UpdateCapsuleLine();
+    }
+
+    /// <summary>Line change: the new line slides up with a fade (220 ms).</summary>
+    private void SetCapsuleLine(string text, bool animate)
+    {
+        if (text == _capsuleLine) return;
+        _capsuleLine = text;
+        MiniLyric.Text = text;
+        if (!animate) return;
+        var dur = Dur(220);
+        var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        MiniLyric.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
+        MiniLyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, dur) { EasingFunction = ease });
     }
 
     private static List<(string Text, bool Adlib)> SplitParts(string line)

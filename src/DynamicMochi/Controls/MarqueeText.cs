@@ -18,6 +18,7 @@ public sealed class MarqueeText : Grid
     public MarqueeText()
     {
         ClipToBounds = true;
+        _text.SetResourceReference(TextBlock.ForegroundProperty, "FgBrush");   // never the system black (was invisible in dark themes)
         _text.RenderTransform = _shift;
         Children.Add(_text);
         SizeChanged += (_, _) => Restart();

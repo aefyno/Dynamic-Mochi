@@ -63,15 +63,16 @@ public static class Native
     public static bool IsWindows11 => Environment.OSVersion.Version.Build >= 22000;
 
     /// <summary>Dark or light title bar and the Mica backdrop. Returns false when Mica is not available.</summary>
-    public static bool ApplyBackdrop(IntPtr hwnd, bool dark)
+    public static bool ApplyBackdrop(IntPtr hwnd, bool dark, bool mica = true)
     {
         int d = dark ? 1 : 0;
         DwmSetWindowAttribute(hwnd, 20, ref d, sizeof(int));          // DWMWA_USE_IMMERSIVE_DARK_MODE
         if (!IsWindows11) return false;
-        var m = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+        // no Mica: the window paints its own (theme gradient) background
+        var m = mica ? new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 } : new MARGINS();
         DwmExtendFrameIntoClientArea(hwnd, ref m);
-        int mica = 2;                                                  // DWMSBT_MAINWINDOW
-        return DwmSetWindowAttribute(hwnd, 38, ref mica, sizeof(int)) == 0;   // DWMWA_SYSTEMBACKDROP_TYPE
+        int type = mica ? 2 : 1;                                       // DWMSBT_MAINWINDOW / DWMSBT_NONE
+        return DwmSetWindowAttribute(hwnd, 38, ref type, sizeof(int)) == 0 && mica;   // DWMWA_SYSTEMBACKDROP_TYPE
     }
 
     public static void MakeToolWindow(IntPtr hwnd)
