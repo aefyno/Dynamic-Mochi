@@ -195,6 +195,22 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
 
+        <!-- v1.6: Home quick buttons (screenshot, do not disturb, lock, power) -->
+        <Style x:Key="QuickButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
+        <!-- v1.6: power tiles (sleep, lock, shut down …) -->
+        <Style x:Key="PowerTile" TargetType="Button" BasedOn="{StaticResource FlatButton}">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
         <!-- Accent filled button: "Сохранить" -->
         <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource FlatButton}">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>

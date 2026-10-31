@@ -53,9 +53,11 @@ public static class ThemeCards
     public static (Button Card, Border Check) Create(Theme theme, double width, double height, double miniWidth, Action onClick)
     {
         double miniHeight = Math.Round(miniWidth * 0.31);
-        var bg = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
+        var bg = theme.Vertical
+            ? new LinearGradientBrush { StartPoint = new Point(0.5, 0), EndPoint = new Point(0.5, 1) }
+            : new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
         bg.GradientStops.Add(new GradientStop(theme.GradTop, 0));
-        bg.GradientStops.Add(new GradientStop(theme.GradMid, 0.55));
+        bg.GradientStops.Add(new GradientStop(theme.GradMid, theme.Vertical ? 0.3 : 0.55));
         bg.GradientStops.Add(new GradientStop(theme.GradEnd, 1));
         var mini = new Border
         {

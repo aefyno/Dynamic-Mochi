@@ -23,6 +23,7 @@ public partial class IslandWindow : Window
     private const double PlayingW = 420, IdleW = 300, DetailH = 58;     // collapsed view (v1.4 default, SPEC-v1.4 §4)
     private const double MinPlayW = 240, MinIdleW = 200, MinH = 36;     // minimal collapsed view (option)
     private const double ExpandedW = 600;
+    private const double HomeWithBarH = 262, PowerH = 218;   // v1.6: Home bottom bar (+44 + 10), power tiles
     private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 330, WeatherH = 436, SettingsH = 350;
     private const double BaseWindowW = 700, BaseWindowH = 500;
 
@@ -186,6 +187,7 @@ public partial class IslandWindow : Window
         Step("screenshots", InitScreenshots);
         Step("notifications", () => _ = InitNotificationsAsync());
         Step("weather", InitWeather);
+        Step("power", BuildPowerTiles);
         Step("tabs", () => SelectTab("home", animate: false));
         Step("version", () => VersionText.Text = "Dynamic Mochi " + App.Version);
         Step("layout", ApplyLayout);
@@ -215,7 +217,7 @@ public partial class IslandWindow : Window
         {
             var t = Themes.Find(_settings.Theme);
             if (t != _theme) ApplyTheme(t, animate: true);
-            else { UpdateTint(300); RefreshThemeCards(); }
+            else { ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); RefreshThemeCards(); }
         });
         Step("layout", ApplyLayout);
         Step("hotkey", () => RegisterHotkey());
@@ -237,6 +239,7 @@ public partial class IslandWindow : Window
         App.ApplyThemeBrushes(t, animate);
 
         ApplyBackground(dur);
+        if (!_loading) SetGradientShape(_expanded, animate ? 250 : 0);   // Gradient Black is vertical
         AnimateColor(StripTopStop, GradientStop.ColorProperty, WithAlpha(t.GradTop, 0.9), dur);
         AnimateColor(StripEndStop, GradientStop.ColorProperty, WithAlpha(t.GradEnd, 0.9), dur);
 
@@ -244,17 +247,7 @@ public partial class IslandWindow : Window
         Capsule.BorderThickness = new Thickness(border);
         LyricsStrip.BorderThickness = new Thickness(border);
 
-        // one effect only: coloured glow for coloured themes, otherwise a soft black shadow
-        var glowColor = t.HasGlow ? Color.FromRgb(t.Glow.R, t.Glow.G, t.Glow.B) : Colors.Black;
-        double glowOpacity = t.HasGlow ? t.Glow.A / 255.0 : t.ShadowOpacity;
-        GlowEffect.ShadowDepth = t.HasGlow ? 0 : 6;
-        GlowEffect.BlurRadius = t.HasGlow ? 22 : 24;
-        AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, glowColor, dur);
-        AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, glowOpacity, dur);
-        StripShadow.Color = glowColor;
-        StripShadow.ShadowDepth = t.HasGlow ? 0 : 4;
-        StripShadow.Opacity = t.HasGlow ? glowOpacity * 0.8 : 0.4;
-
+        ApplyGlow(dur);
         UpdateTint(animate ? 250 : 0);
         _shownIndex = int.MinValue;   // redraw the lyric line
         RefreshThemeCards();
@@ -266,6 +259,44 @@ public partial class IslandWindow : Window
     }
 
     /// <summary>
+    /// One effect only: coloured glow (strength from Settings.GlowStrength, 0.5 = the theme's own value),
+    /// otherwise a soft black shadow. Gradient Black glows in its bottom colour.
+    /// </summary>
+    private void ApplyGlow(TimeSpan dur)
+    {
+        var t = _theme;
+        double k = _settings.GlowStrength / 0.5;                 // 0 … 2
+        bool glow = t.HasGlow && k > 0.01;
+        var baseColor = t.FollowsArt ? BottomColor(bright: true) : t.Glow;
+        var glowColor = glow ? Color.FromRgb(baseColor.R, baseColor.G, baseColor.B) : Colors.Black;
+        double glowOpacity = glow ? Math.Min(1, t.Glow.A / 255.0 * k) : t.ShadowOpacity;
+        GlowEffect.ShadowDepth = glow ? 0 : 6;
+        GlowEffect.BlurRadius = glow ? 14 + 10 * k : 24;          // 50 % → 24, 100 % → 34
+        AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, glowColor, dur);
+        AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, glowOpacity, dur);
+        StripShadow.Color = glowColor;
+        StripShadow.ShadowDepth = glow ? 0 : 4;
+        StripShadow.Opacity = glow ? glowOpacity * 0.8 : 0.4;
+    }
+
+    /// <summary>
+    /// Gradient Black: bottom colour. The artwork colour (kept dark and calm) when it follows the music,
+    /// otherwise the theme's fixed purple. <paramref name="bright"/> = for the glow, not darkened.
+    /// </summary>
+    private Color BottomColor(bool bright = false)
+    {
+        var t = _theme;
+        if (!t.FollowsArt) return t.GradEnd;
+        if (_settings.GradientFromArt && _track != null && _artColor is Color art)
+        {
+            if (bright) return art;
+            // restrained: about a third of the colour, the rest black (SPEC-v1.6 §2, ≤ 25–35 % saturation feel)
+            return Color.FromRgb((byte)(art.R * 0.34), (byte)(art.G * 0.34), (byte)(art.B * 0.34));
+        }
+        return bright ? t.Glow : t.GradEnd;
+    }
+
+    /// <summary>
     /// Background colours. Island: GradTop → GradMid → black. Notch: black at the top edge (it merges with the
     /// screen bezel) flowing into the theme colour towards the bottom (SPEC-v1.4 §17).
     /// </summary>
@@ -273,9 +304,19 @@ public partial class IslandWindow : Window
     {
         var t = _theme;
         bool notch = _settings.Shape == 1 && !t.IsLight;
-        AnimateColor(BgTopStop, GradientStop.ColorProperty, notch ? Colors.Black : t.GradTop, dur);
-        AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
-        AnimateColor(BgEndStop, GradientStop.ColorProperty, notch ? t.GradTop : t.GradEnd, dur);
+        if (t.Vertical)
+        {
+            // Gradient Black: pitch black on top, colour only at the bottom (island and notch alike)
+            AnimateColor(BgTopStop, GradientStop.ColorProperty, Colors.Black, dur);
+            AnimateColor(BgMidStop, GradientStop.ColorProperty, Colors.Black, dur);
+            AnimateColor(BgEndStop, GradientStop.ColorProperty, BottomColor(), dur);
+        }
+        else
+        {
+            AnimateColor(BgTopStop, GradientStop.ColorProperty, notch ? Colors.Black : t.GradTop, dur);
+            AnimateColor(BgMidStop, GradientStop.ColorProperty, t.GradMid, dur);
+            AnimateColor(BgEndStop, GradientStop.ColorProperty, notch ? t.GradTop : t.GradEnd, dur);
+        }
         var ear = new SolidColorBrush(notch ? Colors.Black : t.GradTop);
         ear.Freeze();
         EarLeft.Fill = ear;
@@ -326,6 +367,15 @@ public partial class IslandWindow : Window
             if (animate) s.BeginAnimation(GradientStop.OffsetProperty, new DoubleAnimation(to, dur) { EasingFunction = ease });
             else { s.BeginAnimation(GradientStop.OffsetProperty, null); s.Offset = to; }
         }
+        if (_theme.Vertical)
+        {
+            // black stays black over the upper half; colour rises only from the bottom edge
+            P(LinearGradientBrush.StartPointProperty, new Point(0.5, 0));
+            P(LinearGradientBrush.EndPointProperty, new Point(0.5, 1));
+            O(BgMidStop, expanded ? 0.5 : 0.35);
+            O(BgEndStop, 1.0);
+            return;
+        }
         if (_settings.Shape == 1)
         {
             P(LinearGradientBrush.StartPointProperty, new Point(0.5, 0));
@@ -353,6 +403,13 @@ public partial class IslandWindow : Window
             c = WithAlpha(_theme.Accent, _theme.IsLight ? 0.06 : 0.08);
 
         AnimateColor(TintStop, GradientStop.ColorProperty, c, Dur(ms));
+
+        // Gradient Black follows the artwork: recolour the bottom and the glow as well
+        if (_theme.FollowsArt)
+        {
+            AnimateColor(BgEndStop, GradientStop.ColorProperty, BottomColor(), Dur(Math.Max(ms, 600)));
+            ApplyGlow(Dur(Math.Max(ms, 600)));
+        }
     }
 
     // ================= Shape: everything inside is clipped to the rounded capsule
@@ -452,8 +509,9 @@ public partial class IslandWindow : Window
         "music" => HasLyricsForTrack ? MusicWithLyricsH : MusicH,
         "calendar" => CalendarH,
         "weather" => WeatherH,
+        "power" => PowerH,
         "settings" => SettingsH,
-        _ => HomeH,
+        _ => HomeBar.Visibility == Visibility.Visible ? HomeWithBarH : HomeH,
     };
 
     private bool DetailedCollapsed => !_settings.MinimalIdle || _peek;
@@ -657,7 +715,19 @@ public partial class IslandWindow : Window
 
     // ================= Tabs
 
-    private static readonly string[] Pages = { "home", "music", "calendar", "weather", "settings" };
+    private static readonly string[] Pages = { "home", "music", "calendar", "weather", "power", "settings" };
+
+    /// <summary>Tabs actually shown (the power tab can be turned off): the pill position follows this list.</summary>
+    private string[] VisiblePages => _settings.ShowPowerTab ? Pages : Pages.Where(p => p != "power").ToArray();
+
+    private void MovePill(string page, bool animate)
+    {
+        double x = Math.Max(0, Array.IndexOf(VisiblePages, page)) * 40;
+        TabPillShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(x, Dur(animate ? 220 : 0))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
+        });
+    }
 
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
@@ -669,6 +739,7 @@ public partial class IslandWindow : Window
         "music" => MusicPage,
         "calendar" => CalendarPage,
         "weather" => WeatherPage,
+        "power" => PowerPage,
         "settings" => SettingsPage,
         _ => HomePage,
     };
@@ -681,12 +752,9 @@ public partial class IslandWindow : Window
         if (old == "calendar" && page != "calendar") CloseEventForm(animate: false);
         if (page != old) DisableKeyboard();
 
-        double x = Array.IndexOf(Pages, page) * 40;
-        TabPillShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(x, Dur(animate ? 220 : 0))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
-        });
-        foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabSettings, "settings") })
+        MovePill(page, animate);
+        if (page != "power") ResetPowerConfirm();
+        foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabPower, "power"), (TabSettings, "settings") })
             tab.SetResourceReference(ForegroundProperty, page == name ? "AccentBrush" : "SubBrush");
         SmallClock.Visibility = page == "home" ? Visibility.Collapsed : Visibility.Visible;
 
@@ -867,9 +935,22 @@ public partial class IslandWindow : Window
             ThemeCards.SetSelected(card, check, theme.Name == _settings.Theme);
     }
 
+    /// <summary>v1.6: lyrics moved to the settings window; here only the Home quick buttons and the power tab.</summary>
     private void RefreshToggles()
     {
-        SetToggle(LyricsToggle, LyricsKnob, _settings.ShowLyrics, animate: !_loading);
+        QuickDnd.SetResourceReference(ForegroundProperty, _settings.DoNotDisturb ? "AccentBrush" : "FgBrush");
+        HomeQuick.Visibility = _settings.HomeQuickButtons ? Visibility.Visible : Visibility.Collapsed;
+        if (HomeWeather.Visibility == Visibility.Visible && !_settings.HomeWeatherBlock) HomeWeather.Visibility = Visibility.Collapsed;
+        HomeBar.Visibility = _settings.HomeQuickButtons || (_settings.HomeWeatherBlock && _settings.CurrentPlace != null)
+            ? Visibility.Visible : Visibility.Collapsed;
+        QuickPower.Visibility = _settings.ShowPowerTab ? Visibility.Visible : Visibility.Collapsed;
+        bool showPower = _settings.ShowPowerTab;
+        TabPower.Visibility = showPower ? Visibility.Visible : Visibility.Collapsed;
+        TabBar.Width = VisiblePages.Length * 40;
+        if (!showPower && _page == "power") SelectTab("home", animate: false);
+        else MovePill(_page, animate: false);
+        if (_expanded && _page == "home" && !_loading)
+            AnimateSize(ExpandedW, PageHeight("home"), 220, new CubicEase { EasingMode = EasingMode.EaseInOut });
     }
 
     private static void SetToggle(Border track, Ellipse knob, bool on, bool animate)
@@ -887,18 +968,6 @@ public partial class IslandWindow : Window
     {
         chip.SetResourceReference(BackgroundProperty, selected ? "AccentBrush" : "SurfaceBrush");
         chip.SetResourceReference(ForegroundProperty, selected ? "AccentFgBrush" : "FgBrush");
-    }
-
-    private void LyricsRow_Click(object sender, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        _settings.ShowLyrics = !_settings.ShowLyrics;
-        _shownIndex = int.MinValue;
-        _settings.Save();
-        RefreshToggles();
-        if (_settings.ShowLyrics && _track != null) UpdateLyricsSource(_track);
-        UpdateStrip();
-        App.SettingsChangedFromIsland();
     }
 
     private void AllSettings_Click(object sender, RoutedEventArgs e) => App.ShowSettings();

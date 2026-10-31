@@ -316,4 +316,35 @@
   <data name="wmo.95" xml:space="preserve"><value>Гроза</value></data>
   <data name="wmo.96" xml:space="preserve"><value>Гроза с градом</value></data>
   <data name="wmo.99" xml:space="preserve"><value>Гроза с градом</value></data>
+  <data name="tab.power" xml:space="preserve"><value>Питание</value></data>
+  <data name="power.sleep" xml:space="preserve"><value>Сон</value></data>
+  <data name="power.lock" xml:space="preserve"><value>Заблокировать</value></data>
+  <data name="power.hibernate" xml:space="preserve"><value>Гибернация</value></data>
+  <data name="power.restart" xml:space="preserve"><value>Перезагрузить</value></data>
+  <data name="power.signout" xml:space="preserve"><value>Выйти из учётки</value></data>
+  <data name="power.shutdown" xml:space="preserve"><value>Выключить</value></data>
+  <data name="power.confirm" xml:space="preserve"><value>Точно? Нажми ещё раз</value></data>
+  <data name="power.nohibernate" xml:space="preserve"><value>Гибернация выключена в Windows</value></data>
+  <data name="quick.screenshot" xml:space="preserve"><value>Скриншот</value></data>
+  <data name="quick.dnd" xml:space="preserve"><value>Не беспокоить</value></data>
+  <data name="theme.gradient" xml:space="preserve"><value>Градиент</value></data>
+  <data name="theme.purple" xml:space="preserve"><value>Фиолетовая</value></data>
+  <data name="set.glow" xml:space="preserve"><value>Свечение</value></data>
+  <data name="set.glow.d" xml:space="preserve"><value>Насколько сильно капсула светится цветом темы. 0 — без свечения.</value></data>
+  <data name="set.glow.na" xml:space="preserve"><value>В этой теме нет свечения.</value></data>
+  <data name="set.gradsrc" xml:space="preserve"><value>Цвет градиента</value></data>
+  <data name="set.gradsrc.d" xml:space="preserve"><value>Тема «Градиент»: снизу цвет обложки песни или постоянный фиолетовый.</value></data>
+  <data name="set.gradsrc.art" xml:space="preserve"><value>Цвет песни</value></data>
+  <data name="set.gradsrc.fixed" xml:space="preserve"><value>Фиолетовый</value></data>
+  <data name="set.gradsrc.na" xml:space="preserve"><value>Только для темы «Градиент».</value></data>
+  <data name="set.tint.na" xml:space="preserve"><value>Недоступно в этой теме: у неё свой цвет или она полностью чёрная.</value></data>
+  <data name="set.home" xml:space="preserve"><value>Главная</value></data>
+  <data name="set.home.weather" xml:space="preserve"><value>Погода на Главной</value></data>
+  <data name="set.home.weather.d" xml:space="preserve"><value>Иконка, температура, место и ветер внизу Главной.</value></data>
+  <data name="set.home.quick" xml:space="preserve"><value>Быстрые кнопки</value></data>
+  <data name="set.home.quick.d" xml:space="preserve"><value>Скриншот, «Не беспокоить», блокировка и питание внизу Главной.</value></data>
+  <data name="set.powertab" xml:space="preserve"><value>Вкладка «Питание»</value></data>
+  <data name="set.powertab.d" xml:space="preserve"><value>Сон, блокировка, гибернация, перезагрузка, выход и выключение прямо из острова.</value></data>
+  <data name="set.dnd" xml:space="preserve"><value>Не беспокоить</value></data>
+  <data name="set.dnd.d" xml:space="preserve"><value>Уведомления Telegram, Discord и скриншотов не всплывают. Напоминания и таймер работают.</value></data>
 </root>

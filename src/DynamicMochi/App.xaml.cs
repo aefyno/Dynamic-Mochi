@@ -172,10 +172,12 @@ public partial class App : Application
         // settings window: the same gradient as the island in coloured themes (colour flowing into black)
         if (t.IsGradient)
         {
-            var g = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
+            var g = t.Vertical
+                ? new LinearGradientBrush { StartPoint = new System.Windows.Point(0.5, 0), EndPoint = new System.Windows.Point(0.5, 1) }
+                : new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
             g.GradientStops.Add(new GradientStop(t.GradTop, 0));
-            g.GradientStops.Add(new GradientStop(t.GradMid, 0.55));
-            g.GradientStops.Add(new GradientStop(Colors.Black, 1));
+            g.GradientStops.Add(new GradientStop(t.GradMid, t.Vertical ? 0.45 : 0.55));
+            g.GradientStops.Add(new GradientStop(t.Vertical ? t.GradEnd : Colors.Black, 1));
             g.Freeze();
             Current.Resources["WindowBrush"] = g;
         }

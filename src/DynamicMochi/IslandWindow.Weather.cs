@@ -156,8 +156,12 @@ public partial class IslandWindow
         _idleWeatherReady = true;
         UpdateIdleLine();
         HomeWeatherIcon.Icon = NowIcon.Icon;
-        HomeWeatherText.Text = NowTemp.Text + " · " + place.Name.Split(',')[0].Trim();
-        HomeWeather.Visibility = Visibility.Visible;
+        HomeWeatherTemp.Text = NowTemp.Text;
+        HomeWeatherText.Text = place.Name.Split(',')[0].Trim();
+        double windMs = WeatherService.ToMs(w.Wind, w.WindUnit);
+        HomeWeatherWind.Text = windMs < 0.3 ? "" :
+            Math.Round(w.Wind).ToString("0", CultureInfo.InvariantCulture) + " " + WeatherService.UnitLabel(w.WindUnit);
+        HomeWeather.Visibility = _settings.HomeWeatherBlock ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateTint(300);
         UpdateWeatherFx();

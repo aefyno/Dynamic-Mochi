@@ -216,7 +216,7 @@
 
                                 <!-- Tab bar with a sliding pill -->
                                 <Grid Height="30">
-                                    <Grid HorizontalAlignment="Center" Width="200">
+                                    <Grid x:Name="TabBar" HorizontalAlignment="Center" Width="240">
                                         <Border x:Name="TabPill" Width="40" Height="30" CornerRadius="10" HorizontalAlignment="Left"
                                                 Background="{DynamicResource SurfaceBrush}">
                                             <Border.RenderTransform>
@@ -230,6 +230,7 @@
                                             <Button x:Name="TabWeather" Style="{StaticResource TabButton}" ToolTip="{DynamicResource T.tab.weather}" Click="Tab_Click" Tag="weather">
                                                 <controls:WeatherIcon Icon="PartlySun" Mono="True" Width="19" Height="19"/>
                                             </Button>
+                                            <Button x:Name="TabPower" Style="{StaticResource TabButton}" Content="&#xE7E8;" ToolTip="{DynamicResource T.tab.power}" Click="Tab_Click" Tag="power"/>
                                             <Button x:Name="TabSettings" Style="{StaticResource TabButton}" Content="&#xE713;" ToolTip="{DynamicResource T.tab.settings}" Click="Tab_Click" Tag="settings"/>
                                         </StackPanel>
                                     </Grid>
@@ -249,17 +250,14 @@
                                             <ColumnDefinition Width="16"/>
                                             <ColumnDefinition Width="55*"/>
                                         </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock x:Name="BigClock" FontFamily="{DynamicResource DisplayFont}" FontSize="48" FontWeight="{DynamicResource DisplayWeight}"
                                                        Typography.NumeralAlignment="Tabular" Margin="0,-6,0,0"/>
                                             <TextBlock x:Name="DateText" FontSize="13" Foreground="{DynamicResource SubBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
-                                            <Button x:Name="HomeWeather" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="6,2" Margin="-6,6,0,0"
-                                                    Click="HomeWeather_Click" Visibility="Collapsed">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <controls:WeatherIcon x:Name="HomeWeatherIcon" Width="16" Height="16" Foreground="{DynamicResource FgBrush}"/>
-                                                    <TextBlock x:Name="HomeWeatherText" FontSize="13" Foreground="{DynamicResource SubBrush}" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Button>
                                             <Button x:Name="HomeEvent" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="6,2" Margin="-6,2,0,0"
                                                     Click="HomeEvent_Click" Visibility="Collapsed">
                                                 <StackPanel Orientation="Horizontal">
@@ -310,6 +308,26 @@
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
+                                        <!-- v1.6: bottom bar (weather + quick buttons). Fixed height 44: the clock and the player never shrink. -->
+                                        <Grid x:Name="HomeBar" Grid.Row="1" Grid.ColumnSpan="3" Height="44" Margin="0,10,0,0">
+                                            <Button x:Name="HomeWeather" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" Padding="8,0" Height="44"
+                                                    Click="HomeWeather_Click" Visibility="Collapsed">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <controls:WeatherIcon x:Name="HomeWeatherIcon" Width="22" Height="22" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="HomeWeatherTemp" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                               Typography.NumeralAlignment="Tabular"/>
+                                                    <TextBlock x:Name="HomeWeatherText" FontSize="12" Foreground="{DynamicResource SubBrush}" Margin="8,0,0,0"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="170"/>
+                                                    <TextBlock x:Name="HomeWeatherWind" FontSize="12" Foreground="{DynamicResource FaintBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <StackPanel x:Name="HomeQuick" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource QuickButton}" Content="&#xE722;" ToolTip="{DynamicResource T.quick.screenshot}" Click="QuickScreenshot_Click"/>
+                                                <Button x:Name="QuickDnd" Style="{StaticResource QuickButton}" Content="&#xE708;" ToolTip="{DynamicResource T.quick.dnd}" Click="QuickDnd_Click"/>
+                                                <Button Style="{StaticResource QuickButton}" Content="&#xE72E;" ToolTip="{DynamicResource T.power.lock}" Click="QuickLock_Click"/>
+                                                <Button x:Name="QuickPower" Style="{StaticResource QuickButton}" Content="&#xE7E8;" ToolTip="{DynamicResource T.tab.power}" Click="QuickPower_Click" Margin="0"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Grid>
 
                                     <!-- ===== Music ===== -->
@@ -658,6 +676,14 @@
                                         </Grid>
                                     </Grid>
 
+                                    <!-- ===== Power (v1.6) ===== -->
+                                    <Grid x:Name="PowerPage" Visibility="Collapsed" Opacity="0">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform/>
+                                        </Grid.RenderTransform>
+                                        <UniformGrid x:Name="PowerGrid" Columns="3" Rows="2"/>
+                                    </Grid>
+
                                     <!-- ===== Settings ===== -->
                                     <ScrollViewer x:Name="SettingsPage" Style="{StaticResource ThinScroll}" Visibility="Collapsed" Opacity="0" Margin="0,0,-8,0">
                                         <ScrollViewer.RenderTransform>
@@ -665,24 +691,8 @@
                                         </ScrollViewer.RenderTransform>
                                         <StackPanel>
                                             <TextBlock Text="{DynamicResource T.qs.appearance}" Style="{StaticResource SectionHeader}"/>
-                                            <UniformGrid x:Name="ThemePanel" Columns="3" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                                            <UniformGrid x:Name="ThemePanel" Columns="4" HorizontalAlignment="Left" Margin="0,0,0,8"/>
 
-                                            <TextBlock Text="{DynamicResource T.qs.music}" Style="{StaticResource SectionHeader}" Margin="0,8,0,8"/>
-                                            <Button x:Name="LyricsRow" Style="{StaticResource SettingRow}" Click="LyricsRow_Click">
-                                                <Grid>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE8D2;" Style="{StaticResource Glyph}" FontSize="16" Foreground="{DynamicResource SubBrush}" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="{DynamicResource T.qs.lyrics}" FontSize="13" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                    <Border x:Name="LyricsToggle" Width="40" Height="22" CornerRadius="11" HorizontalAlignment="Right">
-                                                        <Ellipse x:Name="LyricsKnob" Width="18" Height="18" HorizontalAlignment="Left" Margin="2,0,0,0">
-                                                            <Ellipse.RenderTransform>
-                                                                <TranslateTransform/>
-                                                            </Ellipse.RenderTransform>
-                                                        </Ellipse>
-                                                    </Border>
-                                                </Grid>
-                                            </Button>
                                             <Button Style="{StaticResource PlateButton}" Height="40" Margin="0,12,0,0" Click="AllSettings_Click">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="&#xE713;" Style="{StaticResource Glyph}" FontSize="15" Foreground="{DynamicResource FgBrush}" Margin="0,0,10,0"/>
