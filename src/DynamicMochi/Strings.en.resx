@@ -79,6 +79,7 @@
   <data name="set.appearance" xml:space="preserve"><value>Appearance</value></data>
   <data name="set.autostart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="set.autostart.d" xml:space="preserve"><value>The island appears right after you sign in.</value></data>
+  <data name="set.autostart.win" xml:space="preserve"><value>Switched off in Task Manager → Startup apps. Turn the toggle on to bring it back.</value></data>
   <data name="set.calendar" xml:space="preserve"><value>Calendar</value></data>
   <data name="set.click" xml:space="preserve"><value>Click control</value></data>
   <data name="set.click.d" xml:space="preserve"><value>A click on the collapsed island pauses, a double click plays the next track. The wheel always changes the volume.</value></data>

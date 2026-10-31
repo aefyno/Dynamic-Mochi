@@ -40,6 +40,7 @@ public sealed class Settings
     public bool Clock24 { get; set; } = true;
     public bool ClockWithMusic { get; set; } = true;
     public bool HideInFullscreen { get; set; } = true;
+    public bool StartWithWindows { get; set; } = true;   // v1.6.2: on by default, old files without the key get it too
     public bool ShowPowerTab { get; set; } = true;       // v1.6: sleep / lock / shut down tab
     public bool HomeWeatherBlock { get; set; } = true;   // v1.6: Home bottom bar
     public bool HomeQuickButtons { get; set; } = true;

@@ -541,8 +541,9 @@ public partial class SettingsWindow : Window
                 }),
                 new(Loc.T("set.system"), new List<Row>
                 {
-                    new(Loc.T("set.autostart"), Loc.T("set.autostart.d"), () =>
-                        MakeToggle(AutoStart.IsEnabled, v => AutoStart.Set(v))),
+                    new(Loc.T("set.autostart"),
+                        AutoStart.DisabledInWindows ? Loc.T("set.autostart.win") : Loc.T("set.autostart.d"), () =>
+                        MakeToggle(AutoStart.IsEnabled, v => { S.StartWithWindows = v; AutoStart.Set(v); }, rerender: true)),
                     new(Loc.T("set.hotkey"), Loc.T("set.hotkey.d"), HotkeyControl),
                     new(Loc.T("set.language"), Loc.T("set.language.d"), () =>
                         MakeSegmented(new[] { Loc.T("set.language.system"), "Русский", "English" },

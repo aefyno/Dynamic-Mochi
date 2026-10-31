@@ -79,6 +79,7 @@
   <data name="set.appearance" xml:space="preserve"><value>Внешний вид</value></data>
   <data name="set.autostart" xml:space="preserve"><value>Запускать вместе с Windows</value></data>
   <data name="set.autostart.d" xml:space="preserve"><value>Остров появится сразу после входа в систему.</value></data>
+  <data name="set.autostart.win" xml:space="preserve"><value>Выключено в Диспетчере задач → Автозагрузка. Включите тумблер, чтобы вернуть.</value></data>
   <data name="set.calendar" xml:space="preserve"><value>Календарь</value></data>
   <data name="set.click" xml:space="preserve"><value>Управление кликом</value></data>
   <data name="set.click.d" xml:space="preserve"><value>Клик по свёрнутому острову ставит на паузу, двойной клик включает следующий трек. Колёсико меняет громкость всегда.</value></data>

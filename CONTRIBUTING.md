@@ -125,3 +125,14 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Not done: note and stats blocks from §5 (left for later).
   - Not verified on hardware (CI build only).
 
+- **2026-10-31 (v1.6.1, by Etan):**
+  - Sharp text on 2K / 115 %: the glow is a separate shape behind the capsule, so the text is no longer rasterised with the shadow; text uses ideal rendering.
+  - The lyric line has its own shadow layer, so it stays sharp too.
+  - Glow slider also sets the brightness of the Gradient bottom colour; the settings window follows the song colour in the gradient themes.
+  - Lyric strip markup fixed (the build was broken by stray tags).
+  - Not done: nothing new beyond v1.6 (note and stats blocks still pending).
+  - Not verified on hardware (CI build only). Check text at 100 / 115 / 125 / 150 % on Windows 11.
+- **2026-10-31 (v1.6.2, by Etan):**
+  - Autostart fixed. Root cause: the Run value kept the exe path from the moment the toggle was switched on; every new build unpacked into another folder left Windows starting an old or deleted exe, while the toggle still looked "on" (it only checked that some value existed).
+  - Now: "Start with Windows" is a real setting, on by default (old settings files get it too). On every launch the Run value is pointed at the running exe. The toggle shows "on" only when the value matches this exe and the app is not switched off in Task Manager → Startup apps; turning it on clears that "off" mark. The settings row says so when Task Manager has it off.
+  - Not verified on hardware (CI build only). Check: launch the new exe once, reboot, the island should appear after sign-in; then switch it off in Task Manager and see the settings row.

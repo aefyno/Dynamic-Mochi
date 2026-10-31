@@ -32,6 +32,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         Log.Write($"start: Dynamic Mochi {Version}");
+        if (Settings.StartWithWindows) AutoStart.Refresh();
         Loc.Apply(Settings.Language);
         ApplyFont(Settings.Font);
         ApplyClockFont(Settings.ClockFont);
