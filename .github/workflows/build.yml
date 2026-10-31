@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ "main", "phase-*", "fix/**" ]
+    branches: [ "main", "phase-*", "fix/**", "release/v*" ]
     tags: [ "v*" ]
   pull_request:
 
@@ -26,7 +26,7 @@ jobs:
           name: DynamicMochi-win-x64
           path: publish
       - name: Pre-release
-        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') && !startsWith(github.ref, 'refs/heads/release/')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,14 +36,15 @@ jobs:
           Compress-Archive -Path publish\* -DestinationPath DynamicMochi-win-x64.zip
           gh release delete $tag --yes --cleanup-tag 2>$null
           gh release create $tag DynamicMochi-win-x64.zip --prerelease --target "${{ github.sha }}" --title "Latest build ($branch)" --notes "Automatic build of ${{ github.sha }}. Single self-contained exe, no .NET install needed."
-      # v* tag: a real numbered release (the app's updater reads releases/latest)
+      # a v* tag or a release/v* branch: a real numbered release (the app's updater reads releases/latest).
+      # The release/v* branch exists because tags cannot be pushed from every environment; gh creates the tag.
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "${{ github.ref_name }}" -replace '^release/', ''
           Copy-Item publish\DynamicMochi.exe DynamicMochi.exe
           Compress-Archive -Path publish\* -DestinationPath "DynamicMochi-$tag-win-x64.zip"
           $hash = (Get-FileHash DynamicMochi.exe -Algorithm SHA256).Hash.ToLower()
