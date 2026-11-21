@@ -98,7 +98,9 @@ public partial class IslandWindow
 
         // paused look: dim title and art
         MiniTitle.SetForegroundResource(playing ? "FgBrush" : "SubBrush");
+        MinTitle.SetForegroundResource(playing ? "FgBrush" : "SubBrush");
         MiniArtBox.Opacity = playing ? 1 : 0.7;
+        MinArtBox.Opacity = playing ? 1 : 0.7;
 
         string playIcon = playing ? "" : "";
         string playTip = Loc.T(playing ? "music.pause" : "music.play");
@@ -127,6 +129,7 @@ public partial class IslandWindow
                 _hasArt = false;
                 _artColor = null;
                 MiniTitle.Text = "";
+                MinTitle.Text = "";
                 MusicTitle.Text = Loc.T("music.none");
                 MusicArtist.Text = Loc.T("music.hint");
                 TimeLeft.Text = "";
@@ -143,6 +146,7 @@ public partial class IslandWindow
         {
             _shownKey = t.Key;
             MiniTitle.Text = t.Title;
+            MinTitle.Text = t.Title;
             MusicTitle.Text = t.Title;
             HomeTitle.Text = t.Title;
             MusicArtist.Text = t.Artist;

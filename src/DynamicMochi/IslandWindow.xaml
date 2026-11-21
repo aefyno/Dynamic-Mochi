@@ -84,21 +84,30 @@
 
                             <!-- ===== Collapsed ===== -->
                             <Grid x:Name="CollapsedView">
-                                <!-- minimal idle: clock only -->
-                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="17" FontWeight="{DynamicResource DisplayWeight}"
+                                <!-- v1.7.1 resting island (default): slim and quiet, like it belongs to the screen.
+                                     Idle: just the time. Playing: art · title · equalizer. Details show on hover / track change. -->
+                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="15" FontWeight="SemiBold"
                                            Typography.NumeralAlignment="Tabular" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                                <!-- minimal playing: art · (clock) · equalizer -->
-                                <Grid x:Name="MinPlayRow" Margin="6,0,14,0" Visibility="Collapsed">
-                                    <Border x:Name="MinArtBox" Width="24" Height="24" CornerRadius="7" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                <Grid x:Name="MinPlayRow" Margin="6,0,15,0" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border x:Name="MinArtBox" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center"
                                             Background="{DynamicResource SurfaceBrush}">
                                         <Border.Clip>
-                                            <RectangleGeometry Rect="0,0,24,24" RadiusX="7" RadiusY="7"/>
+                                            <RectangleGeometry Rect="0,0,26,26" RadiusX="13" RadiusY="13"/>
                                         </Border.Clip>
                                         <Image x:Name="MinArt" Stretch="UniformToFill"/>
                                     </Border>
-                                    <TextBlock x:Name="MinMusicClock" FontSize="13" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
-                                               FontFamily="{DynamicResource DisplayFont}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <StackPanel x:Name="MinEqBars" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Height="14">
+                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="10,0,10,0" FontSize="13" FontWeight="SemiBold"
+                                                          Height="18" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="MinMusicClock" Grid.Column="2" Margin="0,0,10,0" FontSize="13" FontWeight="SemiBold"
+                                               Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource SubBrush}"
+                                               FontFamily="{DynamicResource DisplayFont}" VerticalAlignment="Center"/>
+                                    <StackPanel x:Name="MinEqBars" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Height="14">
                                         <Rectangle x:Name="MinBar0" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="MinBar1" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
                                         <Rectangle x:Name="MinBar2" Width="2.5" Height="3" RadiusX="1.25" RadiusY="1.25" Margin="0,0,2,0" VerticalAlignment="Center" Fill="{DynamicResource EqBrush}"/>
