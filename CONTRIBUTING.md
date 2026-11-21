@@ -158,3 +158,7 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Glass is clear now: the screen behind is copied at full size, almost no blur, a light tint (16 %, up to ~46 % over white pages). No artwork colour in the glass theme (it was the pink).
   - More 3D in the shader: a thick round rim whose bending gets steeper towards the edge, slight magnification of the whole piece, colour split along the rim, glossy reflection across the top, a Fresnel-bright rim, sharp highlight on the lit side and a softer one opposite, the far side of the rim in shade.
   - Not verified on hardware (CI build only). Check readability of white text over a white page, CPU with glass on (full-size capture now).
+- **2026-11-22 (v1.7.3, by Etan):** tester: blur the background a little (still recognisable), the bubble looked like Frutiger Aero.
+  - Glass background: half-size copy (halftone) + a 17-tap round blur in the shader; refraction 14 (strip 9), thinner rim (34 % of the height, 7–18 DIP), no magnification.
+  - Removed the glossy stripe, the Fresnel brightening and the big highlights. Light now lives only on a thin rim (brighter towards the top-left light, faint bounce opposite) plus a hairline; colour split only right at the edge; soft shade on the far side of the rim.
+  - Not verified on hardware (CI build only).

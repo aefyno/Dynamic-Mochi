@@ -58,7 +58,7 @@ public partial class IslandWindow
         try
         {
             _capsuleFx = new LiquidGlassEffect();
-            _stripFx = new LiquidGlassEffect { Refraction = 11 };
+            _stripFx = new LiquidGlassEffect { Refraction = 9 };
             _glassShader = true;
         }
         catch (Exception ex)
@@ -147,7 +147,7 @@ public partial class IslandWindow
         var all = strip ? Rect.Union(cap, str) : cap;
 
         var px = new Int32Rect((int)Math.Floor(all.X), (int)Math.Floor(all.Y), (int)Math.Ceiling(all.Width), (int)Math.Ceiling(all.Height));
-        if (!_glass.Grab(px, 1) || _glass.Bitmap is not { } bmp) return;   // v1.7.2: full size, clear glass
+        if (!_glass.Grab(px, 2) || _glass.Bitmap is not { } bmp) return;   // v1.7.3: half size = soft first blur pass
 
         if (_capsuleBack!.ImageSource != bmp) _capsuleBack.ImageSource = bmp;
         if (_stripBack!.ImageSource != bmp) _stripBack.ImageSource = bmp;
