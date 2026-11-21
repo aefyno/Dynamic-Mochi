@@ -56,6 +56,7 @@ public sealed class Settings
     public string Font { get; set; } = "Manrope";
     public string ClockFont { get; set; } = "Unbounded";
     public bool ArtworkTint { get; set; } = true;
+    public bool ThemePattern { get; set; } = true;     // v1.7.4: faint pattern on the colour themes
     public double GlowStrength { get; set; } = 0.5;      // v1.6: 0 … 1, 0.5 = the theme's own glow
     public bool GradientFromArt { get; set; } = true;    // v1.6: Gradient Black takes the artwork colour (else fixed purple)
     public double AnimationSpeed { get; set; } = 1;     // 1 / 0.6 / 0

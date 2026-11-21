@@ -44,9 +44,9 @@
 
                 <!-- v1.6.1: the glow / shadow lives on its own shape BEHIND the capsule. An effect on the capsule itself
                      made WPF render all the text into a bitmap and stretch it (blurry digits at 115 % / 2K). -->
+                <!-- v1.7.4: sized in code 1.5 px inside the capsule: at full size its black edge showed through
+                     the capsule's anti-aliased edge as a dark outline in every theme -->
                 <Border x:Name="GlowShape" IsHitTestVisible="False" Background="Black"
-                        Width="{Binding ActualWidth, ElementName=Capsule}" Height="{Binding ActualHeight, ElementName=Capsule}"
-                        CornerRadius="{Binding CornerRadius, ElementName=Capsule}"
                         HorizontalAlignment="Center" VerticalAlignment="Top">
                     <Border.Effect>
                         <DropShadowEffect x:Name="GlowEffect" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.45" Color="Black"/>
@@ -79,6 +79,16 @@
                                 </Rectangle.Fill>
                             </Rectangle>
 
+                            <!-- v1.7.4: subtle pattern of the colour themes, fading towards the bottom -->
+                            <Rectangle x:Name="PatternRect" IsHitTestVisible="False" Visibility="Collapsed">
+                                <Rectangle.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#FF000000" Offset="0"/>
+                                        <GradientStop Color="#55000000" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Rectangle.OpacityMask>
+                            </Rectangle>
+
                             <!-- Live weather background (weather tab only) -->
                             <controls:WeatherFx x:Name="WeatherFx" IsHitTestVisible="False" Opacity="0" Visibility="Collapsed"/>
 
@@ -87,31 +97,31 @@
                                 <!-- v1.7.1 resting island (default): slim and quiet, like it belongs to the screen.
                                      Idle: just the time. Playing: art · title · equalizer. Details show on hover / track change. -->
                                 <StackPanel x:Name="MinIdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                                    <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="18" FontWeight="SemiBold"
+                                    <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="20" FontWeight="SemiBold"
                                                Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
                                     <StackPanel x:Name="MinWeather" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
-                                        <controls:WeatherIcon x:Name="MinWeatherIcon" Width="18" Height="18" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="MinTemp" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource SubBrush}" Margin="5,0,0,0"
+                                        <controls:WeatherIcon x:Name="MinWeatherIcon" Width="20" Height="20" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="MinTemp" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource SubBrush}" Margin="5,0,0,0"
                                                    VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"/>
                                     </StackPanel>
                                 </StackPanel>
-                                <Grid x:Name="MinPlayRow" Margin="7,0,17,0" Visibility="Collapsed">
+                                <Grid x:Name="MinPlayRow" Margin="7,0,18,0" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border x:Name="MinArtBox" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Center"
+                                    <Border x:Name="MinArtBox" Width="34" Height="34" CornerRadius="17" VerticalAlignment="Center"
                                             Background="{DynamicResource SurfaceBrush}">
                                         <Border.Clip>
-                                            <RectangleGeometry Rect="0,0,30,30" RadiusX="15" RadiusY="15"/>
+                                            <RectangleGeometry Rect="0,0,34,34" RadiusX="17" RadiusY="17"/>
                                         </Border.Clip>
                                         <Image x:Name="MinArt" Stretch="UniformToFill"/>
                                     </Border>
-                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="11,0,11,0" FontSize="14" FontWeight="SemiBold"
-                                                          Height="19" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="MinMusicClock" Grid.Column="2" Margin="0,0,10,0" FontSize="13" FontWeight="SemiBold"
+                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="12,0,12,0" FontSize="15" FontWeight="SemiBold"
+                                                          Height="20" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="MinMusicClock" Grid.Column="2" Margin="0,0,10,0" FontSize="14" FontWeight="SemiBold"
                                                Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource SubBrush}"
                                                FontFamily="{DynamicResource DisplayFont}" VerticalAlignment="Center"/>
                                     <StackPanel x:Name="MinEqBars" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Height="14">

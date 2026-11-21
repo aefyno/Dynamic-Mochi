@@ -21,8 +21,8 @@ public partial class IslandWindow : Window
 {
     // Capsule sizes before the user scale (Settings.Scale is applied as a LayoutTransform)
     private const double PlayingW = 420, IdleW = 300, DetailH = 58;     // collapsed view (v1.4 default, SPEC-v1.4 §4)
-    private const double MinPlayW = 320, MinH = 44;                     // v1.7.2 resting view (default)
-    private double MinIdleW => MinWeather.Visibility == Visibility.Visible ? 190 : 124;   // time (+ weather)
+    private const double MinPlayW = 360, MinH = 48;                     // v1.7.4 resting view (default), bigger
+    private double MinIdleW => MinWeather.Visibility == Visibility.Visible ? 216 : 136;   // time (+ weather)
     private const double ExpandedW = 600;
     private const double HomeWithBarH = 262, PowerH = 218;   // v1.6: Home bottom bar (+44 + 10), power tiles
     private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 330, WeatherH = 436, SettingsH = 350;
@@ -199,8 +199,8 @@ public partial class IslandWindow : Window
 
         // appear from a point like a drop: width first, height a beat later, both wobble into place.
         // Always runs, otherwise the island stays invisible.
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0, 1, Dur(700)) { EasingFunction = new SpringEase(6, 11) });
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0, 1, Dur(700)) { EasingFunction = new SpringEase(5.5, 12), BeginTime = Dur(50) });
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0, 1, Dur(600)) { EasingFunction = new SpringEase(8, 11) });
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0, 1, Dur(600)) { EasingFunction = new SpringEase(8, 12), BeginTime = Dur(40) });
         PumpGlass(800);
 
         _uiTimer.Start();
@@ -221,7 +221,7 @@ public partial class IslandWindow : Window
         {
             var t = Themes.Find(_settings.Theme);
             if (t != _theme) ApplyTheme(t, animate: true);
-            else { App.ApplyThemeBrushes(t, animate: false); ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); RefreshThemeCards(); }
+            else { App.ApplyThemeBrushes(t, animate: false); ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); ApplyPattern(); RefreshThemeCards(); }
         });
         Step("layout", ApplyLayout);
         Step("hotkey", () => RegisterHotkey());
@@ -247,7 +247,8 @@ public partial class IslandWindow : Window
         AnimateColor(StripTopStop, GradientStop.ColorProperty, WithAlpha(t.GradTop, 0.9), dur);
         AnimateColor(StripEndStop, GradientStop.ColorProperty, WithAlpha(t.GradEnd, 0.9), dur);
 
-        double border = t.Border.A > 0 ? 1 : 0;
+        double border = 0;   // v1.7.4: no outline in any theme (tester: it looked ugly)
+        ApplyPattern();
         Capsule.BorderThickness = new Thickness(border);
         LyricsStrip.BorderThickness = new Thickness(border);
 
@@ -261,6 +262,21 @@ public partial class IslandWindow : Window
         Capsule_SizeChanged(Capsule, null);
         foreach (var ring in new[] { MiniTimerRing, IdleTimerRing, TimerRing }) ring.InvalidateVisual();
         ApplyGlass();
+    }
+
+    /// <summary>v1.7.4: the colour themes carry a faint pattern (Settings → Appearance → Pattern).</summary>
+    private void ApplyPattern()
+    {
+        var id = _settings.ThemePattern ? Patterns.For(_theme) : null;
+        if (id == null)
+        {
+            PatternRect.Visibility = Visibility.Collapsed;
+            PatternRect.Fill = null;
+            return;
+        }
+        PatternRect.Fill = Patterns.Make(id, Colors.White);
+        PatternRect.Opacity = 0.075;
+        PatternRect.Visibility = Visibility.Visible;
     }
 
     /// <summary>
@@ -466,6 +482,15 @@ public partial class IslandWindow : Window
             CapsuleContent.Clip = new RectangleGeometry(new Rect(0, 0, iw, ih), r, r);
         }
         DropRing.CornerRadius = Capsule.CornerRadius;
+
+        // the shadow shape hides 1.5 px inside the capsule edge, so none of its black shows as an outline
+        const double inset = 1.5;
+        var cr = Capsule.CornerRadius;
+        GlowShape.Width = Math.Max(0, w - 2 * inset);
+        GlowShape.Height = Math.Max(0, h - 2 * inset);
+        GlowShape.Margin = new Thickness(0, inset, 0, 0);
+        GlowShape.CornerRadius = new CornerRadius(Math.Max(0, cr.TopLeft - inset), Math.Max(0, cr.TopRight - inset),
+            Math.Max(0, cr.BottomRight - inset), Math.Max(0, cr.BottomLeft - inset));
         if (CapsuleProgress.Visibility == Visibility.Visible) UpdateCapsuleProgress();
     }
 
@@ -486,7 +511,7 @@ public partial class IslandWindow : Window
         if (_notice != null && _notice.HoverOpens) { var n = _notice; DismissNotice(); n.Click?.Invoke(); }
         if (_expanded || HoldsHover) return;
         _expandTimer.Start();
-        Swell(1.03, 320);   // anticipation: the drop swells
+        Swell(1.02, 300);   // anticipation: the capsule swells a little
     }
 
     private void Capsule_MouseLeave(object sender, MouseEventArgs e)

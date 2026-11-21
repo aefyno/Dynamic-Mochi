@@ -194,8 +194,9 @@ public partial class IslandWindow
         double fromH = Capsule.ActualHeight > 0 ? Capsule.ActualHeight : h;
         double room = BaseWindowH - IslandStack.Margin.Top - h - 6;
         double dh = Math.Abs(h - fromH);
-        double hOver = dh < 1 ? 0.1 : Math.Clamp(Math.Min(0.16, room / dh), 0.02, 0.16);
-        double wOver = Math.Clamp(Math.Min(0.11, (BaseWindowW - w - 8) / Math.Max(1, Math.Abs(w - fromW))), 0.02, 0.11);
+        // v1.7.4: calmer — about half the v1.7.0 overshoot
+        double hOver = dh < 1 ? 0.05 : Math.Clamp(Math.Min(0.07, room / dh), 0.02, 0.07);
+        double wOver = Math.Clamp(Math.Min(0.05, (BaseWindowW - w - 8) / Math.Max(1, Math.Abs(w - fromW))), 0.02, 0.05);
 
         var dur = Dur(ms);
         var lag = Dur(45);
@@ -212,9 +213,9 @@ public partial class IslandWindow
     {
         double w = _expanded ? ExpandedW : CollapsedWidth;
         double h = _expanded ? PageHeight(_page) : CollapsedSize.H;
-        var spring = new SpringEase(5.5, 19);
-        var wa = new DoubleAnimation(w * 1.06, w, Dur(620)) { EasingFunction = spring };
-        var ha = new DoubleAnimation(h * 0.9, h, Dur(620)) { EasingFunction = spring };
+        var spring = new SpringEase(7.5, 17);
+        var wa = new DoubleAnimation(w * 1.035, w, Dur(520)) { EasingFunction = spring };
+        var ha = new DoubleAnimation(h * 0.95, h, Dur(520)) { EasingFunction = spring };
         wa.Completed += (_, _) => Repaint();
         Capsule.BeginAnimation(FrameworkElement.WidthProperty, wa);
         Capsule.BeginAnimation(FrameworkElement.HeightProperty, ha);
@@ -224,9 +225,9 @@ public partial class IslandWindow
     /// <summary>Hover anticipation: the capsule swells a little, like a drop about to split.</summary>
     private void Swell(double to, int ms)
     {
-        var a = new DoubleAnimation(to, Dur(ms)) { EasingFunction = new SpringEase(7, 14) };
+        var a = new DoubleAnimation(to, Dur(ms)) { EasingFunction = new SpringEase(9, 14) };
         RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, a);
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(to + (to - 1) * 0.6, Dur(ms)) { EasingFunction = new SpringEase(6, 14) });
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(to + (to - 1) * 0.3, Dur(ms)) { EasingFunction = new SpringEase(9, 14) });
         PumpGlass(ms);
     }
 
@@ -240,14 +241,14 @@ public partial class IslandWindow
         double up = -(StripHost.Margin.Top + Math.Max(18, LyricsStrip.ActualHeight * 0.6));
         if (show)
         {
-            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.32, 1, Dur(640)) { EasingFunction = new SpringEase(5.5, 12) });
-            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.4, 1, Dur(640)) { EasingFunction = new SpringEase(5, 13), BeginTime = Dur(30) });
-            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, 0, Dur(600)) { EasingFunction = new SpringEase(6, 11) });
+            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.45, 1, Dur(560)) { EasingFunction = new SpringEase(7.5, 12) });
+            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.5, 1, Dur(560)) { EasingFunction = new SpringEase(7.5, 13), BeginTime = Dur(30) });
+            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, 0, Dur(540)) { EasingFunction = new SpringEase(8, 11) });
             LyricsStrip.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Dur(160)) { BeginTime = Dur(40) });
 
             var neck = new DoubleAnimationUsingKeyFrames();
             neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(0)));
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(84, Capsule.ActualWidth * 0.3), Dur(150), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(52, Capsule.ActualWidth * 0.2), Dur(150), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
             neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(380), new CubicEase { EasingMode = EasingMode.EaseIn }));
             Neck.BeginAnimation(WidthProperty, neck);
             PumpGlass(680);
@@ -260,7 +261,7 @@ public partial class IslandWindow
             StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, Dur(260)) { EasingFunction = ease });
 
             var neck = new DoubleAnimationUsingKeyFrames();
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(70, Capsule.ActualWidth * 0.25), Dur(140), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(44, Capsule.ActualWidth * 0.16), Dur(140), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
             neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(260)));
             Neck.BeginAnimation(WidthProperty, neck);
 

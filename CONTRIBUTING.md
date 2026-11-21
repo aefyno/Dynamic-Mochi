@@ -162,3 +162,9 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Glass background: half-size copy (halftone) + a 17-tap round blur in the shader; refraction 14 (strip 9), thinner rim (34 % of the height, 7–18 DIP), no magnification.
   - Removed the glossy stripe, the Fresnel brightening and the big highlights. Light now lives only on a thin rim (brighter towards the top-left light, faint bounce opposite) plus a hairline; colour split only right at the edge; soft shade on the far side of the rim.
   - Not verified on hardware (CI build only).
+- **2026-11-22 (v1.7.4, by Etan):** tester: remove the line around the island in all themes, less slimy, patterns on the colour themes, bigger island.
+  - Outline gone: theme borders are off everywhere, and `GlowShape` (the black shape that casts the shadow) is now sized in `Capsule_SizeChanged` 1.5 px inside the capsule; at full size its black showed through the capsule's anti-aliased edge as a dark ring. Glass rim light is a wide soft glow now, no hairline.
+  - Motion calmer: about half the overshoot (size 5–7 %, jelly 3.5 %/5 %, hover swell 2 %), higher damping, smaller lyric-strip neck.
+  - Patterns (`Controls/Patterns.cs`, Settings → Appearance → Pattern, on by default): Red diagonals, Blue waves, Green pluses, Orange dots, Purple sparkles, Gradient rings, ~7.5 % white fading towards the bottom. White, OLED and Liquid Glass stay plain.
+  - Resting pill bigger: 48 high; idle 216 wide with weather (136 without), clock 20 px; playing 360 wide, art 34, title 15 px.
+  - Not verified on hardware (CI build only).

@@ -340,6 +340,9 @@
   <data name="set.gradsrc.fixed" xml:space="preserve"><value>Фиолетовый</value></data>
   <data name="set.gradsrc.na" xml:space="preserve"><value>Только для темы «Градиент».</value></data>
   <data name="set.tint.na" xml:space="preserve"><value>Недоступно в этой теме: у неё свой цвет или она полностью чёрная.</value></data>
+  <data name="set.pattern" xml:space="preserve"><value>Узор</value></data>
+  <data name="set.pattern.d" xml:space="preserve"><value>Еле заметный узор на цветных темах: диагонали, волны, точки, звёзды…</value></data>
+  <data name="set.pattern.na" xml:space="preserve"><value>Только для цветных тем.</value></data>
   <data name="set.home" xml:space="preserve"><value>Главная</value></data>
   <data name="set.home.weather" xml:space="preserve"><value>Погода на Главной</value></data>
   <data name="set.home.weather.d" xml:space="preserve"><value>Иконка, температура, место и ветер внизу Главной.</value></data>

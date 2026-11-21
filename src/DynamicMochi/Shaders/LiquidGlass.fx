@@ -83,9 +83,9 @@ float4 main(float2 uv : TEXCOORD) : COLOR
     // light lives only on the thin rim (no gloss stripe): brighter where it faces the light, a faint bounce opposite
     float key = saturate(dot(n, Light));
     float bounce = saturate(dot(n, -Light));
-    float edge = smoothstep(0.8, 1.0, t);
-    c.rgb += edge * (0.06 + 0.26 * key * key + 0.10 * bounce * bounce);
-    c.rgb += pow(t, 30) * 0.16;   // hairline
+    // v1.7.4: a wide soft glow on the rim, no constant edge and no hairline (they read as an outline)
+    float edge = smoothstep(0.5, 1.0, t);
+    c.rgb += edge * edge * (0.20 * key * key + 0.07 * bounce * bounce);
 
     // a soft shade just inside the rim, away from the light: thickness
     c.rgb *= 1 - 0.10 * smoothstep(0.35, 0.9, t) * (1 - key);
