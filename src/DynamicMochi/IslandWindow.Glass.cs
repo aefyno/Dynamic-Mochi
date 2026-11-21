@@ -25,7 +25,6 @@ public partial class IslandWindow
     private ImageBrush? _capsuleBack, _stripBack;
     private DateTime _glassFastUntil;
 
-    private static readonly Color GlassTint = Color.FromArgb(97, 12, 12, 18);   // ~38 % dark
 
     /// <summary>Glass theme on or off.</summary>
     private void ApplyGlass()
@@ -59,7 +58,7 @@ public partial class IslandWindow
         try
         {
             _capsuleFx = new LiquidGlassEffect();
-            _stripFx = new LiquidGlassEffect { Refraction = 8 };
+            _stripFx = new LiquidGlassEffect { Refraction = 11 };
             _glassShader = true;
         }
         catch (Exception ex)
@@ -148,7 +147,7 @@ public partial class IslandWindow
         var all = strip ? Rect.Union(cap, str) : cap;
 
         var px = new Int32Rect((int)Math.Floor(all.X), (int)Math.Floor(all.Y), (int)Math.Ceiling(all.Width), (int)Math.Ceiling(all.Height));
-        if (!_glass.Grab(px, 3) || _glass.Bitmap is not { } bmp) return;
+        if (!_glass.Grab(px, 1) || _glass.Bitmap is not { } bmp) return;   // v1.7.2: full size, clear glass
 
         if (_capsuleBack!.ImageSource != bmp) _capsuleBack.ImageSource = bmp;
         if (_stripBack!.ImageSource != bmp) _stripBack.ImageSource = bmp;

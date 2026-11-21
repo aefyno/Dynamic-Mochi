@@ -153,3 +153,8 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Side effect: in the glass theme the island does not appear in screenshots or screen recordings (that is what lets it see behind itself).
   - Resting island redesign: the slim view is the default again and everyone is switched to it once (settings version 8). Idle = only the time in a 136×38 pill; playing = round art · title · equalizer, 290×38. The detailed 420×58 view still shows on track change (peek) and can be chosen in settings.
   - Not verified on hardware (CI build only). Check: does the blur appear (log.txt: `glass: on, shader liquid`, `exclude from capture on ok`); is the background behind the island seen, not the island itself (a recursive smear would mean capture exclusion failed); CPU use with glass on; edges at 115 %.
+- **2026-11-22 (v1.7.2, by Etan):** tester's feedback on v1.7.1: resting island too small, glass too frosted and pink, wants more 3D.
+  - Resting pill bigger: 44 px high. Idle = time (18 px) · weather icon · temperature, 190 wide (124 without weather). Playing = round art 30 · title 14 px · equalizer, 320 wide.
+  - Glass is clear now: the screen behind is copied at full size, almost no blur, a light tint (16 %, up to ~46 % over white pages). No artwork colour in the glass theme (it was the pink).
+  - More 3D in the shader: a thick round rim whose bending gets steeper towards the edge, slight magnification of the whole piece, colour split along the rim, glossy reflection across the top, a Fresnel-bright rim, sharp highlight on the lit side and a softer one opposite, the far side of the rim in shade.
+  - Not verified on hardware (CI build only). Check readability of white text over a white page, CPU with glass on (full-size capture now).

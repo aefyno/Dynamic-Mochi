@@ -7,7 +7,7 @@ namespace DynamicMochi.Services;
 
 /// <summary>
 /// v1.7.1 Liquid Glass backdrop: copies the screen area behind the island into a small bitmap
-/// (a third of the size, halftone-filtered, which is already a soft first blur pass).
+/// (v1.7.2: full size for clear glass; a smaller copy is halftone-filtered, a first blur pass).
 /// The island window is excluded from screen capture, so the copy shows what is behind it, not the island itself.
 /// v1.7.0 asked Windows to blur instead (accent policy + window region); Windows ignored the region on this
 /// kind of window and painted a big dark rectangle, so that approach is gone.
@@ -64,7 +64,7 @@ public sealed class Glass : IDisposable
             IntPtr src = GetDC(IntPtr.Zero);
             try
             {
-                SetStretchBltMode(_dc, HALFTONE);
+                SetStretchBltMode(_dc, shrink > 1 ? HALFTONE : 3 /* COLORONCOLOR: 1:1, no filtering */);
                 SetBrushOrgEx(_dc, 0, 0, IntPtr.Zero);
                 if (!StretchBlt(_dc, 0, 0, w, h, src, screen.X, screen.Y, screen.Width, screen.Height, SRCCOPY | CAPTUREBLT)) return false;
             }

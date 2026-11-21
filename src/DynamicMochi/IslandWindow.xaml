@@ -86,24 +86,31 @@
                             <Grid x:Name="CollapsedView">
                                 <!-- v1.7.1 resting island (default): slim and quiet, like it belongs to the screen.
                                      Idle: just the time. Playing: art · title · equalizer. Details show on hover / track change. -->
-                                <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="15" FontWeight="SemiBold"
-                                           Typography.NumeralAlignment="Tabular" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                                <Grid x:Name="MinPlayRow" Margin="6,0,15,0" Visibility="Collapsed">
+                                <StackPanel x:Name="MinIdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                                    <TextBlock x:Name="MinClock" FontFamily="{DynamicResource DisplayFont}" FontSize="18" FontWeight="SemiBold"
+                                               Typography.NumeralAlignment="Tabular" VerticalAlignment="Center"/>
+                                    <StackPanel x:Name="MinWeather" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                        <controls:WeatherIcon x:Name="MinWeatherIcon" Width="18" Height="18" Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="MinTemp" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource SubBrush}" Margin="5,0,0,0"
+                                                   VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Grid x:Name="MinPlayRow" Margin="7,0,17,0" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border x:Name="MinArtBox" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center"
+                                    <Border x:Name="MinArtBox" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Center"
                                             Background="{DynamicResource SurfaceBrush}">
                                         <Border.Clip>
-                                            <RectangleGeometry Rect="0,0,26,26" RadiusX="13" RadiusY="13"/>
+                                            <RectangleGeometry Rect="0,0,30,30" RadiusX="15" RadiusY="15"/>
                                         </Border.Clip>
                                         <Image x:Name="MinArt" Stretch="UniformToFill"/>
                                     </Border>
-                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="10,0,10,0" FontSize="13" FontWeight="SemiBold"
-                                                          Height="18" VerticalAlignment="Center"/>
+                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="11,0,11,0" FontSize="14" FontWeight="SemiBold"
+                                                          Height="19" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="MinMusicClock" Grid.Column="2" Margin="0,0,10,0" FontSize="13" FontWeight="SemiBold"
                                                Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource SubBrush}"
                                                FontFamily="{DynamicResource DisplayFont}" VerticalAlignment="Center"/>

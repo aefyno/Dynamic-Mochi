@@ -21,7 +21,8 @@ public partial class IslandWindow : Window
 {
     // Capsule sizes before the user scale (Settings.Scale is applied as a LayoutTransform)
     private const double PlayingW = 420, IdleW = 300, DetailH = 58;     // collapsed view (v1.4 default, SPEC-v1.4 §4)
-    private const double MinPlayW = 290, MinIdleW = 136, MinH = 38;     // v1.7.1 resting view (default): slim pill
+    private const double MinPlayW = 320, MinH = 44;                     // v1.7.2 resting view (default)
+    private double MinIdleW => MinWeather.Visibility == Visibility.Visible ? 190 : 124;   // time (+ weather)
     private const double ExpandedW = 600;
     private const double HomeWithBarH = 262, PowerH = 218;   // v1.6: Home bottom bar (+44 + 10), power tiles
     private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 330, WeatherH = 436, SettingsH = 350;
@@ -619,8 +620,8 @@ public partial class IslandWindow : Window
     {
         FrameworkElement want = _notice != null ? ActivityRow
             : DetailedCollapsed ? (_track != null ? PlayingRow : IdleRow)
-            : (_track != null ? MinPlayRow : MinClock);
-        foreach (var row in new FrameworkElement[] { ActivityRow, PlayingRow, IdleRow, MinPlayRow, MinClock })
+            : (_track != null ? MinPlayRow : MinIdleRow);
+        foreach (var row in new FrameworkElement[] { ActivityRow, PlayingRow, IdleRow, MinPlayRow, MinIdleRow })
         {
             if (row == want)
             {

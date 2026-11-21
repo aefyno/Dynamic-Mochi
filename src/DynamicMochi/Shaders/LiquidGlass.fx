@@ -1,15 +1,16 @@
-// v1.7.1 Liquid Glass — WPF pixel shader (ps_3_0), compiled in CI with fxc:
+// Liquid Glass — WPF pixel shader (ps_3_0), compiled in CI with fxc:
 //   fxc /T ps_3_0 /E main /O3 /Fo LiquidGlass.ps LiquidGlass.fx
-// Input: the screen area behind the capsule (captured at 1/3 size, stretched back up = first blur pass).
-// The shader adds a soft blur, bends the background like a convex lens near the rim, splits colour at the rim,
-// darkens bright backgrounds so white text stays readable, and lights the edge from one side for depth.
+// Input: the screen area behind the capsule, full size.
+// v1.7.2: clear glass, not frosted. The background stays sharp; the depth comes from a thick rounded rim
+// that bends the background like a lens, a colour split along that rim, a glossy reflection across the top,
+// sharp highlights on the lit side and a shade on the far side. A light tint keeps white text readable.
 
 sampler2D Input : register(s0);
 
 float2 Size       : register(c0);   // element size, DIP
 float  Radius     : register(c1);   // corner radius, DIP
 float  Refraction : register(c2);   // how far the rim pulls the background inward, DIP
-float  Blur       : register(c3);   // extra blur radius, DIP
+float  Blur       : register(c3);   // softening radius, DIP (small: clear glass)
 float4 Tint       : register(c4);   // glass colour; alpha = base strength
 float  Bevel      : register(c5);   // width of the curved rim, DIP
 float  FlatTop    : register(c6);   // 1 = notch shape (no rim along the top)
@@ -33,15 +34,13 @@ float shape(float2 p)
     return sdBox(p, hs, r);
 }
 
-float4 blurred(float2 uv, float2 px)
+float4 soft(float2 uv, float2 px)
 {
     float2 o = px * Blur;
     float4 c = tex2D(Input, uv) * 4;
-    c += (tex2D(Input, uv + float2(o.x, 0)) + tex2D(Input, uv - float2(o.x, 0))
-        + tex2D(Input, uv + float2(0, o.y)) + tex2D(Input, uv - float2(0, o.y))) * 2;
-    c += tex2D(Input, uv + o) + tex2D(Input, uv - o)
-       + tex2D(Input, uv + float2(o.x, -o.y)) + tex2D(Input, uv + float2(-o.x, o.y));
-    return c / 16;
+    c += tex2D(Input, uv + float2(o.x, 0)) + tex2D(Input, uv - float2(o.x, 0))
+       + tex2D(Input, uv + float2(0, o.y)) + tex2D(Input, uv - float2(0, o.y));
+    return c / 8;
 }
 
 float4 main(float2 uv : TEXCOORD) : COLOR
@@ -56,35 +55,48 @@ float4 main(float2 uv : TEXCOORD) : COLOR
                       shape(p + float2(0, e)) - shape(p - float2(0, e)));
     n = n / max(length(n), 0.0001);
 
-    // 0 in the flat middle → 1 at the very edge: the curved rim of the glass
+    // 0 in the flat middle → 1 at the very edge
     float t = saturate(1 + d / Bevel);
-    float lens = t * t;
+    // a round, thick rim: the surface gets steeper towards the edge, so the bending does too
+    float slope = t / sqrt(max(1 - t * t * 0.94, 0.06));
 
-    // convex lens: near the rim the background is sampled from further inside, so it bends and stretches
-    float2 suv = clamp(uv - n * lens * Refraction * px, px, 1 - px);
-    float4 c = blurred(suv, px);
+    // the whole piece magnifies a touch, the rim bends the background inward like a lens
+    float2 cuv = 0.5 + (uv - 0.5) * 0.985;
+    float2 suv = clamp(cuv - n * slope * Refraction * px, px, 1 - px);
+    float4 c = soft(suv, px);
 
-    // colour split along the rim, like light through a thick edge
-    float2 ca = n * lens * 2.0 * px;
-    c.r = lerp(c.r, tex2D(Input, clamp(suv - ca, px, 1 - px)).r, lens);
-    c.b = lerp(c.b, tex2D(Input, clamp(suv + ca, px, 1 - px)).b, lens);
+    // colour split along the rim
+    float2 ca = n * slope * 1.8 * px;
+    float split = saturate(t * 1.4);
+    c.r = lerp(c.r, tex2D(Input, clamp(suv - ca, px, 1 - px)).r, split);
+    c.b = lerp(c.b, tex2D(Input, clamp(suv + ca, px, 1 - px)).b, split);
 
-    // a little more colour, then the glass tint — stronger over bright backgrounds so white text stays readable
+    // a light tint, stronger only over bright backgrounds so white text stays readable
     float l = dot(c.rgb, float3(0.299, 0.587, 0.114));
-    c.rgb = lerp(l.xxx, c.rgb, 1.2);
-    c.rgb = lerp(c.rgb, Tint.rgb, saturate(Tint.a + 0.42 * l));
+    c.rgb = lerp(c.rgb, Tint.rgb, saturate(Tint.a + 0.30 * l));
 
-    // volume: lit from the top, deeper at the bottom
-    c.rgb *= 1.07 - 0.14 * uv.y;
-
-    // light on the rim: strong on the side facing the light, a weaker bounce opposite, a thin bright edge all round
     float key = saturate(dot(n, Light));
     float bounce = saturate(dot(n, -Light));
-    float rim = pow(t, 5);
-    c.rgb += rim * (0.5 * pow(key, 1.5) + 0.2 * pow(bounce, 2)) + pow(t, 18) * 0.25;
 
-    // thickness: a soft shade just inside the rim, away from the light
-    c.rgb *= 1 - 0.16 * pow(t, 3) * (1 - key);
+    // glossy reflection across the upper part, fading out before the rim
+    float gloss = (1 - smoothstep(0, 0.55, uv.y)) * (1 - t);
+    c.rgb += gloss * 0.09;
+
+    // the rim reflects more than the middle (Fresnel)
+    c.rgb += pow(t, 3) * 0.08;
+
+    // sharp highlights on the rim: strong where it faces the light, a softer one on the opposite side
+    float band = smoothstep(0.45, 0.9, t);
+    c.rgb += band * (0.85 * pow(key, 4) + 0.35 * pow(bounce, 5));
+
+    // a thin bright edge all round
+    c.rgb += pow(t, 22) * 0.35;
+
+    // thickness: the rim away from the light is in shade
+    c.rgb *= 1 - 0.28 * smoothstep(0.15, 0.85, t) * (1 - key) * (1 - 0.6 * bounce);
+
+    // lit from the top, a little deeper at the bottom
+    c.rgb *= 1.04 - 0.10 * uv.y;
 
     float a = saturate(0.5 - d);
     return float4(saturate(c.rgb) * a, a);

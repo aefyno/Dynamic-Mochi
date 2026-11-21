@@ -70,7 +70,7 @@ public static class Themes
             Accent: C("#FFFFFF"), AccentFg: C("#000000"),
             Border: Colors.Transparent, Glow: Colors.Transparent, ShadowOpacity: 0,
             ToggleOff: A("#FFFFFF", 0.22), Equalizer: C("#FFFFFF"),
-            ArtworkTint: true, TintOpacity: 0.32, IsLight: false, Glass: true),
+            ArtworkTint: false, TintOpacity: 0, IsLight: false, Glass: true),   // v1.7.2: clear glass, no artwork colour
 
         new("Белая",
             GradTop: C("#F5F5F7"), GradMid: C("#F5F5F7"), GradEnd: C("#F5F5F7"),

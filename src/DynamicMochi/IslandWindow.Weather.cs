@@ -119,6 +119,7 @@ public partial class IslandWindow
         if (place == null || w == null)
         {
             _idleWeatherReady = false;
+            ShowMinWeather();
             UpdateIdleLine();
             HomeWeather.Visibility = Visibility.Collapsed;
             if (place != null)
@@ -155,6 +156,10 @@ public partial class IslandWindow
         IdleTemp.Text = WeatherService.Describe(w.Code) + " · " + NowTemp.Text;
         _idleWeatherReady = true;
         UpdateIdleLine();
+        // v1.7.2: the resting pill shows time · weather
+        MinWeatherIcon.Icon = NowIcon.Icon;
+        MinTemp.Text = NowTemp.Text;
+        ShowMinWeather();
         HomeWeatherIcon.Icon = NowIcon.Icon;
         HomeWeatherTemp.Text = NowTemp.Text;
         HomeWeatherText.Text = place.Name.Split(',')[0].Trim();
@@ -368,5 +373,14 @@ public partial class IslandWindow
         string key = $"{_settings.Fahrenheit}{_settings.WindUnit}|{_settings.PlaceIndex}|{string.Join(";", _settings.Places.Select(p => WeatherKey(p)))}";
         if (key != _unitsKey) { _unitsKey = key; PlacesChanged(); }
         else ShowWeather();
+    }
+
+    /// <summary>Weather next to the time in the resting pill (when there is weather and the setting allows it).</summary>
+    private void ShowMinWeather()
+    {
+        var v = _idleWeatherReady && _settings.WeatherInCapsule ? Visibility.Visible : Visibility.Collapsed;
+        if (MinWeather.Visibility == v) return;
+        MinWeather.Visibility = v;
+        if (!_expanded) UpdateCollapsedRow();   // the pill gets wider or narrower
     }
 }

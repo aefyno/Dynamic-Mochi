@@ -29,9 +29,9 @@ public sealed class LiquidGlassEffect : ShaderEffect
 
     public static readonly DependencyProperty SizeProperty = Register("Size", typeof(Point), new Point(300, 40), 0);
     public static readonly DependencyProperty RadiusProperty = Register("Radius", typeof(double), 20.0, 1);
-    public static readonly DependencyProperty RefractionProperty = Register("Refraction", typeof(double), 14.0, 2);
-    public static readonly DependencyProperty BlurProperty = Register("Blur", typeof(double), 2.0, 3);
-    public static readonly DependencyProperty TintProperty = Register("Tint", typeof(Color), Color.FromArgb(97, 14, 14, 20), 4);
+    public static readonly DependencyProperty RefractionProperty = Register("Refraction", typeof(double), 20.0, 2);
+    public static readonly DependencyProperty BlurProperty = Register("Blur", typeof(double), 0.6, 3);
+    public static readonly DependencyProperty TintProperty = Register("Tint", typeof(Color), Color.FromArgb(41, 10, 10, 14), 4);
     public static readonly DependencyProperty BevelProperty = Register("Bevel", typeof(double), 16.0, 5);
     public static readonly DependencyProperty FlatTopProperty = Register("FlatTop", typeof(double), 0.0, 6);
     public static readonly DependencyProperty LightProperty = Register("Light", typeof(Point), new Point(-0.55, -0.83), 7);
@@ -62,7 +62,7 @@ public sealed class LiquidGlassEffect : ShaderEffect
     {
         if (Math.Abs(Size.X - w) > 0.25 || Math.Abs(Size.Y - h) > 0.25) Size = new Point(Math.Max(1, w), Math.Max(1, h));
         if (Math.Abs(Radius - radius) > 0.25) Radius = radius;
-        double bevel = Math.Clamp(Math.Min(w, h) * 0.42, 8, 22);
+        double bevel = Math.Clamp(Math.Min(w, h) * 0.40, 8, 22);
         if (Math.Abs(Bevel - bevel) > 0.25) Bevel = bevel;
         double flat = flatTop ? 1 : 0;
         if (FlatTop != flat) FlatTop = flat;
