@@ -194,16 +194,8 @@ public partial class IslandWindow
         }
     }
 
-    /// <summary>Light width "squish" of the capsule when the track changes.</summary>
-    private void Squish()
-    {
-        double w = _expanded ? ExpandedW : CollapsedWidth;
-        var a = new DoubleAnimationUsingKeyFrames();
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w * 1.03, Dur(110), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-        a.KeyFrames.Add(new EasingDoubleKeyFrame(w, Dur(220), new QuadraticEase { EasingMode = EasingMode.EaseInOut }));
-        a.Completed += (_, _) => Repaint();
-        Capsule.BeginAnimation(FrameworkElement.WidthProperty, a);
-    }
+    /// <summary>v1.7: the capsule wobbles like jelly when the track changes.</summary>
+    private void Squish() => Jelly();
 
     /// <summary>Play ↔ pause icon change: fade out, swap, fade in.</summary>
     private static void SwapIcon(Button b, string icon, bool animate)
@@ -554,20 +546,17 @@ public partial class IslandWindow
     private void UpdateStrip()
     {
         bool show = LyricsUnder && !_expanded && _notice == null && _track?.IsPlaying == true && HasLyricsForTrack;
-        if (show && LyricsStrip.Visibility != Visibility.Visible)
+        // v1.7: the strip drips out of the capsule and is sucked back in (IslandWindow.Glass.cs)
+        if (show && !_stripShown)
         {
+            _stripShown = true;
             LyricsStrip.Visibility = Visibility.Visible;
-            Fade(LyricsStrip, 1, 150, 0);
+            GooStrip(true);
         }
-        else if (!show && LyricsStrip.Visibility == Visibility.Visible)
+        else if (!show && _stripShown)
         {
-            var fade = new DoubleAnimation(0, Dur(150));
-            fade.Completed += (_, _) =>
-            {
-                if (LyricsStrip.Opacity < 0.01) LyricsStrip.Visibility = Visibility.Collapsed;
-                Repaint();
-            };
-            LyricsStrip.BeginAnimation(OpacityProperty, fade);
+            _stripShown = false;
+            GooStrip(false);
         }
         LyricsPreview.Visibility = HasLyricsForTrack ? Visibility.Visible : Visibility.Collapsed;
     }

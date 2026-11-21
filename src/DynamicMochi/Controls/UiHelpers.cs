@@ -59,11 +59,21 @@ public static class ThemeCards
         bg.GradientStops.Add(new GradientStop(theme.GradTop, 0));
         bg.GradientStops.Add(new GradientStop(theme.GradMid, theme.Vertical ? 0.3 : 0.55));
         bg.GradientStops.Add(new GradientStop(theme.GradEnd, 1));
+        Brush fill = bg;
+        if (theme.Glass)
+        {
+            // v1.7: Liquid Glass preview — a colourful wallpaper seen through frosted, tinted glass
+            var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+            g.GradientStops.Add(new GradientStop(Color.FromRgb(0x4B, 0x5F, 0xA8), 0));
+            g.GradientStops.Add(new GradientStop(Color.FromRgb(0x7A, 0x4E, 0xA6), 0.5));
+            g.GradientStops.Add(new GradientStop(Color.FromRgb(0xB0, 0x5E, 0x78), 1));
+            fill = g;
+        }
         var mini = new Border
         {
             Width = miniWidth, Height = miniHeight, CornerRadius = new CornerRadius(miniHeight / 2),
-            Background = bg,
-            BorderBrush = new SolidColorBrush(theme.Border.A > 0 ? theme.Border : (theme.IsLight ? Color.FromArgb(40, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255))),
+            Background = fill,
+            BorderBrush = theme.Glass ? new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)) : new SolidColorBrush(theme.Border.A > 0 ? theme.Border : (theme.IsLight ? Color.FromArgb(40, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255))),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, height > 80 ? 18 : 10, 0, height > 80 ? 10 : 6),

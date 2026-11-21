@@ -774,8 +774,8 @@ public partial class SettingsWindow : Window
 
     private FrameworkElement ThemeGrid()
     {
-        // v1.6: 8 themes, 4 per row
-        var panel = new UniformGrid { Columns = 4 };
+        // v1.7: 9 themes, 3 per row
+        var panel = new UniformGrid { Columns = 3 };
         var cards = new List<(Button, Border, Theme)>();
         foreach (var theme in Themes.All)
         {

@@ -28,7 +28,7 @@ public sealed class Settings
 
     /// <summary>Format version: 0 = up to v1.3, 4 = v1.4 (new defaults applied once on upgrade).</summary>
     public int SettingsVersion { get; set; }   // missing in old files = 0
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     // general
     public double Scale { get; set; } = 1.0;            // 0.8 … 1.3
@@ -151,6 +151,7 @@ public sealed class Settings
             if (Font is "Inter" or "") Font = "Manrope";
             if (WindKmh) WindUnit = 1;
         }
+        if (SettingsVersion < 7) Theme = Themes.GlassName;   // v1.7: the redesign opens in Liquid Glass once; any theme can be picked again
         SettingsVersion = CurrentVersion;
     }
 

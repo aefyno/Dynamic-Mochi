@@ -249,6 +249,7 @@
   <data name="theme.green" xml:space="preserve"><value>Green</value></data>
   <data name="theme.oled" xml:space="preserve"><value>OLED</value></data>
   <data name="theme.orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="theme.glass" xml:space="preserve"><value>Liquid Glass</value></data>
   <data name="theme.red" xml:space="preserve"><value>Red</value></data>
   <data name="theme.white" xml:space="preserve"><value>White</value></data>
   <data name="timer.click" xml:space="preserve"><value>click to pause</value></data>

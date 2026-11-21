@@ -103,6 +103,7 @@ public partial class IslandWindow : Window
         _hwnd = new WindowInteropHelper(this).Handle;
         Native.MakeToolWindow(_hwnd);
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
+        LayoutUpdated += (_, _) => { if (_glassOn) UpdateGlassRegion(); };   // v1.7: blur region follows layout
         ApplyLayout();
         RegisterHotkey();
         _clipboardHooked = AddClipboardFormatListener(_hwnd);
@@ -149,6 +150,7 @@ public partial class IslandWindow : Window
         Width = BaseWindowW * s;
         Height = BaseWindowH * s;
         PlaceOnScreen();
+        ApplyGlass();
     }
 
     private void PlaceOnScreen()
@@ -171,6 +173,7 @@ public partial class IslandWindow : Window
             EasingFunction = new CubicEase { EasingMode = hide ? EasingMode.EaseIn : EasingMode.EaseOut },
         });
         IsHitTestVisible = !hide;
+        PumpGlass(300);
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -194,11 +197,11 @@ public partial class IslandWindow : Window
         Step("layout", ApplyLayout);
         _loading = false;
 
-        // appear from a point; always runs, otherwise the island stays invisible
-        var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
-        var grow = new DoubleAnimation(0, 1, Dur(450)) { EasingFunction = spring };
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+        // appear from a point like a drop: width first, height a beat later, both wobble into place.
+        // Always runs, otherwise the island stays invisible.
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0, 1, Dur(700)) { EasingFunction = new SpringEase(6, 11) });
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0, 1, Dur(700)) { EasingFunction = new SpringEase(5.5, 12), BeginTime = Dur(50) });
+        PumpGlass(800);
 
         _uiTimer.Start();
         if (!_settings.FirstRunDone) Step("first run", ShowFirstRunHint);
@@ -257,6 +260,7 @@ public partial class IslandWindow : Window
         UpdateWeatherFx();
         Capsule_SizeChanged(Capsule, null);
         foreach (var ring in new[] { MiniTimerRing, IdleTimerRing, TimerRing }) ring.InvalidateVisual();
+        ApplyGlass();
     }
 
     /// <summary>
@@ -266,6 +270,13 @@ public partial class IslandWindow : Window
     private void ApplyGlow(TimeSpan dur)
     {
         var t = _theme;
+        if (t.Glass)
+        {
+            // glass has no glow: the blur and the rim are the edge
+            AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, 0, dur);
+            StripShadow.Opacity = 0;
+            return;
+        }
         double k = _settings.GlowStrength / 0.5;                 // 0 … 2
         bool glow = t.HasGlow && k > 0.01;
         var baseColor = t.FollowsArt ? BottomColor(bright: true) : t.Glow;
@@ -472,7 +483,7 @@ public partial class IslandWindow : Window
         if (_notice != null && _notice.HoverOpens) { var n = _notice; DismissNotice(); n.Click?.Invoke(); }
         if (_expanded || HoldsHover) return;
         _expandTimer.Start();
-        Scale(RootScale, 1.02, 150);   // anticipation
+        Swell(1.03, 320);   // anticipation: the drop swells
     }
 
     private void Capsule_MouseLeave(object sender, MouseEventArgs e)
@@ -480,7 +491,7 @@ public partial class IslandWindow : Window
         _expandTimer.Stop();
         if (!_expanded)
         {
-            Scale(RootScale, 1, 150);
+            Swell(1, 320);
             if (_peek) _unpeekTimer.Start();
             return;
         }
@@ -538,9 +549,8 @@ public partial class IslandWindow : Window
         _expanded = true;
         _expandTimer.Stop();
         HideFirstRunHint();
-        Scale(RootScale, 1, 120);
-        var spring = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.25 };
-        AnimateSize(ExpandedW, PageHeight(_page), 380, spring);
+        Swell(1, 300);
+        SpringSize(ExpandedW, PageHeight(_page), 560, heightFirst: false);   // v1.7: stretches out like a drop
         SetGradientShape(expanded: true, ms: 380);
         Fade(CollapsedView, 0, 120, 0);
         ExpandedView.Visibility = Visibility.Visible;
@@ -561,7 +571,7 @@ public partial class IslandWindow : Window
         CloseEventForm(animate: false);
         _highlightId = null;
         var (w, h) = CollapsedSize;
-        AnimateSize(w, h, 260, new CubicEase { EasingMode = EasingMode.EaseInOut });
+        SpringSize(w, h, 480, heightFirst: true);   // v1.7: pulled back in, height first, then a wobble
         SetGradientShape(expanded: false, ms: 260);
         var fade = new DoubleAnimation(0, Dur(120));
         fade.Completed += (_, _) => { if (!_expanded) ExpandedView.Visibility = Visibility.Collapsed; };
@@ -581,6 +591,7 @@ public partial class IslandWindow : Window
         wa.Completed += (_, _) => Repaint();
         Capsule.BeginAnimation(FrameworkElement.WidthProperty, wa);
         Capsule.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(h, dur) { EasingFunction = ease });
+        PumpGlass(ms);
     }
 
     private static void Fade(UIElement el, double to, int ms, int delayMs)
@@ -629,7 +640,10 @@ public partial class IslandWindow : Window
         if (_expanded) return;
         var (w, h) = CollapsedSize;
         if (Math.Abs(Capsule.Width - w) > 0.5 || Math.Abs(Capsule.Height - h) > 0.5)
-            AnimateSize(w, h, _loading ? 0 : 300, new CubicEase { EasingMode = EasingMode.EaseInOut });
+        {
+            if (_loading) AnimateSize(w, h, 0, new CubicEase());
+            else SpringSize(w, h, 460, heightFirst: h < Capsule.ActualHeight);
+        }
     }
 
     // ================= Collapsed capsule: click = play/pause, double click = next, wheel = volume
@@ -796,7 +810,8 @@ public partial class IslandWindow : Window
 
         if (_expanded)
         {
-            AnimateSize(ExpandedW, PageHeight(page), animate ? 220 : 0, new CubicEase { EasingMode = EasingMode.EaseInOut });
+            if (animate) SpringSize(ExpandedW, PageHeight(page), 440, heightFirst: true);   // v1.7: the page height wobbles in
+            else AnimateSize(ExpandedW, PageHeight(page), 0, new CubicEase());
             OnPageShown(page);
         }
         UpdateTint(animate ? 300 : 0);

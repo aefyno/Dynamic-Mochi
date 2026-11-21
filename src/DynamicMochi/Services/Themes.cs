@@ -26,7 +26,8 @@ public sealed record Theme(
     bool ArtworkTint,       // paint a blob of the artwork colour on the background
     double TintOpacity,
     bool IsLight,
-    bool Vertical = false)  // v1.6: black at the top flowing into a colour at the bottom (Gradient Black)
+    bool Vertical = false,  // v1.6: black at the top flowing into a colour at the bottom (Gradient Black)
+    bool Glass = false)     // v1.7: Liquid Glass — see-through tint over a real blur of the desktop
 {
     public bool IsGradient => GradTop != GradEnd;
     public bool HasGlow => Glow.A > 0;
@@ -57,9 +58,20 @@ public static class Themes
         ToggleOff: C("#3A3A3C"), Equalizer: C(accent),
         ArtworkTint: false, TintOpacity: 0, IsLight: false);
 
-    /// <summary>Order = card grid, 4 columns: White, OLED, Gradient, Purple / Red, Blue, Green, Orange.</summary>
+    /// <summary>Order = card grid: Liquid Glass, White, OLED, Gradient, Purple / Red, Blue, Green, Orange.</summary>
     public static readonly IReadOnlyList<Theme> All = new List<Theme>
     {
+        // v1.7: Liquid Glass — a dark see-through tint over a real blur of whatever is behind the island.
+        // The artwork colour shows through as a soft refraction; rim and highlight are drawn by the window.
+        new(GlassName,
+            GradTop: A("#14141A", 0.40), GradMid: A("#14141A", 0.40), GradEnd: A("#14141A", 0.40),
+            Surface: A("#FFFFFF", 0.10), SurfaceHover: A("#FFFFFF", 0.16),
+            Fg: C("#FFFFFF"), Sub: A("#FFFFFF", 0.74), Faint: A("#FFFFFF", 0.50),
+            Accent: C("#FFFFFF"), AccentFg: C("#000000"),
+            Border: Colors.Transparent, Glow: Colors.Transparent, ShadowOpacity: 0,
+            ToggleOff: A("#FFFFFF", 0.22), Equalizer: C("#FFFFFF"),
+            ArtworkTint: true, TintOpacity: 0.32, IsLight: false, Glass: true),
+
         new("Белая",
             GradTop: C("#F5F5F7"), GradMid: C("#F5F5F7"), GradEnd: C("#F5F5F7"),
             Surface: C("#FFFFFF"), SurfaceHover: C("#EBEBF0"),
@@ -99,6 +111,7 @@ public static class Themes
     };
 
     public const string GradientName = "Градиент";
+    public const string GlassName = "Стекло";
 
     /// <summary>
     /// v1.6.1: the glow slider also sets how bright the gradient inside the capsule is.
@@ -121,7 +134,7 @@ public static class Themes
     /// <summary>Localised theme name (the stored key stays Russian for compatibility).</summary>
     public static string Title(Theme t) => Loc.T("theme." + t.Name switch
     {
-        "Белая" => "white", "OLED" => "oled", GradientName => "gradient", "Фиолетовая" => "purple",
+        "Белая" => "white", "OLED" => "oled", GlassName => "glass", GradientName => "gradient", "Фиолетовая" => "purple",
         "Красная" => "red", "Синяя" => "blue", "Зелёная" => "green", _ => "orange",
     });
 }
