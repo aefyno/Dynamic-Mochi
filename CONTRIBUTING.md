@@ -168,3 +168,6 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Patterns (`Controls/Patterns.cs`, Settings → Appearance → Pattern, on by default): Red diagonals, Blue waves, Green pluses, Orange dots, Purple sparkles, Gradient rings, ~7.5 % white fading towards the bottom. White, OLED and Liquid Glass stay plain.
   - Resting pill bigger: 48 high; idle 216 wide with weather (136 without), clock 20 px; playing 360 wide, art 34, title 15 px.
   - Not verified on hardware (CI build only).
+- **2026-11-22 (v1.7.5, by Etan):** tester: the patterns looked ugly → live gradient instead.
+  - Patterns removed (`Controls/Patterns.cs`, setting `ThemePattern`). New `Controls/MeshGradient.cs`: three soft radial blobs in shades of the theme colour (the colour itself, +28° hue lighter, −24° hue) drift slowly over the dark background (11/14/17 s, sine, auto-reverse, 24 fps). Colour themes and Gradient (bottom colour / artwork) only; White, OLED and Glass stay plain. Settings → Appearance → Live gradient (on by default); stops when animations are off.
+  - Not verified on hardware (CI build only). Check CPU with a colour theme (the layered window redraws at 24 fps while the gradient moves).

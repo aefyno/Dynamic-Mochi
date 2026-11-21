@@ -584,9 +584,9 @@ public partial class SettingsWindow : Window
                     new(Loc.T("set.tint"), Loc.T("set.tint.d"), () =>
                         MakeToggle(S.ArtworkTint, v => S.ArtworkTint = v),
                         Disabled: () => !Themes.Find(S.Theme).ArtworkTint ? Loc.T("set.tint.na") : null),
-                    new(Loc.T("set.pattern"), Loc.T("set.pattern.d"), () =>
-                        MakeToggle(S.ThemePattern, v => S.ThemePattern = v),
-                        Disabled: () => Patterns.For(Themes.Find(S.Theme)) == null ? Loc.T("set.pattern.na") : null),
+                    new(Loc.T("set.mesh"), Loc.T("set.mesh.d"), () =>
+                        MakeToggle(S.LiveGradient, v => S.LiveGradient = v),
+                        Disabled: () => Themes.Find(S.Theme) is var t && (!t.IsGradient || t.IsLight || t.Glass) ? Loc.T("set.mesh.na") : null),
                     new(Loc.T("set.anim"), Loc.T("set.anim.d"), () =>
                         MakeSegmented(L("set.anim.normal", "set.anim.fast", "set.anim.off"),
                             S.AnimationSpeed >= 1 ? 0 : S.AnimationSpeed > 0 ? 1 : 2, i => S.AnimationSpeed = i switch { 0 => 1, 1 => 0.6, _ => 0 }, rerender: true)),

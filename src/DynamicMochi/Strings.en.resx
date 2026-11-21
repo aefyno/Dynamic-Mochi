@@ -340,9 +340,9 @@
   <data name="set.gradsrc.fixed" xml:space="preserve"><value>Purple</value></data>
   <data name="set.gradsrc.na" xml:space="preserve"><value>Only for the Gradient theme.</value></data>
   <data name="set.tint.na" xml:space="preserve"><value>Not available in this theme: it has its own colour or is fully black.</value></data>
-  <data name="set.pattern" xml:space="preserve"><value>Pattern</value></data>
-  <data name="set.pattern.d" xml:space="preserve"><value>A faint pattern on the colour themes: diagonals, waves, dots, sparkles…</value></data>
-  <data name="set.pattern.na" xml:space="preserve"><value>Colour themes only.</value></data>
+  <data name="set.mesh" xml:space="preserve"><value>Live gradient</value></data>
+  <data name="set.mesh.d" xml:space="preserve"><value>Shades of the theme colour slowly flow inside the island.</value></data>
+  <data name="set.mesh.na" xml:space="preserve"><value>Colour themes only.</value></data>
   <data name="set.home" xml:space="preserve"><value>Home</value></data>
   <data name="set.home.weather" xml:space="preserve"><value>Weather on Home</value></data>
   <data name="set.home.weather.d" xml:space="preserve"><value>Icon, temperature, place and wind at the bottom of Home.</value></data>

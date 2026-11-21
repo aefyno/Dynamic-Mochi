@@ -221,7 +221,7 @@ public partial class IslandWindow : Window
         {
             var t = Themes.Find(_settings.Theme);
             if (t != _theme) ApplyTheme(t, animate: true);
-            else { App.ApplyThemeBrushes(t, animate: false); ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); ApplyPattern(); RefreshThemeCards(); }
+            else { App.ApplyThemeBrushes(t, animate: false); ApplyBackground(Dur(300)); ApplyGlow(Dur(300)); UpdateTint(300); RefreshThemeCards(); }
         });
         Step("layout", ApplyLayout);
         Step("hotkey", () => RegisterHotkey());
@@ -248,7 +248,6 @@ public partial class IslandWindow : Window
         AnimateColor(StripEndStop, GradientStop.ColorProperty, WithAlpha(t.GradEnd, 0.9), dur);
 
         double border = 0;   // v1.7.4: no outline in any theme (tester: it looked ugly)
-        ApplyPattern();
         Capsule.BorderThickness = new Thickness(border);
         LyricsStrip.BorderThickness = new Thickness(border);
 
@@ -264,19 +263,28 @@ public partial class IslandWindow : Window
         ApplyGlass();
     }
 
-    /// <summary>v1.7.4: the colour themes carry a faint pattern (Settings → Appearance → Pattern).</summary>
-    private void ApplyPattern()
+    /// <summary>
+    /// v1.7.5: live gradient on the colour themes (Settings → Appearance → Live gradient): three shades of the
+    /// theme colour (Gradient: the bottom colour) drift over the dark background. Replaces the v1.7.4 patterns.
+    /// </summary>
+    private void ApplyMesh()
     {
-        var id = _settings.ThemePattern ? Patterns.For(_theme) : null;
-        if (id == null)
+        var t = _theme;
+        bool on = _settings.LiveGradient && t.IsGradient && !t.IsLight && !t.Glass;
+        if (!on)
         {
-            PatternRect.Visibility = Visibility.Collapsed;
-            PatternRect.Fill = null;
+            Mesh.Run(false);
+            Mesh.Visibility = Visibility.Collapsed;
             return;
         }
-        PatternRect.Fill = Patterns.Make(id, Colors.White);
-        PatternRect.Opacity = 0.075;
-        PatternRect.Visibility = Visibility.Visible;
+        static double Lum(Color c) => 0.299 * c.R + 0.587 * c.G + 0.114 * c.B;
+        var c0 = t.FollowsArt ? BottomColor(bright: true) : Lum(t.GradTop) >= Lum(t.GradEnd) ? t.GradTop : t.GradEnd;
+        Mesh.SetColors(
+            MeshGradient.Shift(c0, 0, 0.12, 0.85),
+            MeshGradient.Shift(c0, 28, 0.22, 0.55),
+            MeshGradient.Shift(c0, -24, 0.05, 0.6));
+        Mesh.Visibility = Visibility.Visible;
+        Mesh.Run(_settings.AnimationSpeed > 0);
     }
 
     /// <summary>
@@ -337,6 +345,8 @@ public partial class IslandWindow : Window
     /// </summary>
     private void ApplyBackground(TimeSpan dur)
     {
+        ApplyMesh();
+
         var t = _theme;
         bool notch = _settings.Shape == 1 && !t.IsLight;
         if (t.Vertical)

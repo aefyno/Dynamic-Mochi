@@ -79,15 +79,8 @@
                                 </Rectangle.Fill>
                             </Rectangle>
 
-                            <!-- v1.7.4: subtle pattern of the colour themes, fading towards the bottom -->
-                            <Rectangle x:Name="PatternRect" IsHitTestVisible="False" Visibility="Collapsed">
-                                <Rectangle.OpacityMask>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#FF000000" Offset="0"/>
-                                        <GradientStop Color="#55000000" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Rectangle.OpacityMask>
-                            </Rectangle>
+                            <!-- v1.7.5: live gradient of the colour themes (shades of the theme colour drifting slowly) -->
+                            <controls:MeshGradient x:Name="Mesh" Visibility="Collapsed"/>
 
                             <!-- Live weather background (weather tab only) -->
                             <controls:WeatherFx x:Name="WeatherFx" IsHitTestVisible="False" Opacity="0" Visibility="Collapsed"/>
