@@ -67,6 +67,8 @@
 
                         <!-- Everything inside is clipped to the capsule shape (Clip updated on every size change) -->
                         <Grid x:Name="CapsuleContent">
+                            <!-- v1.7.1 Liquid Glass: what is behind the island, through the glass shader (glass theme only) -->
+                            <Rectangle x:Name="GlassBackdrop" IsHitTestVisible="False" Visibility="Collapsed"/>
                             <!-- Colour blob: artwork (OLED / white) or weather on the weather tab -->
                             <Rectangle x:Name="TintRect" IsHitTestVisible="False">
                                 <Rectangle.Fill>

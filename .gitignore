@@ -6,3 +6,4 @@ publish/
 *.suo
 .idea/
 .DS_Store
+**/Shaders/*.ps

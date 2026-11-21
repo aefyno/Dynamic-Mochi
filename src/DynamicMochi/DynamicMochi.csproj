@@ -11,12 +11,16 @@
     <AssemblyName>DynamicMochi</AssemblyName>
     <RootNamespace>DynamicMochi</RootNamespace>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>1.7.0</Version>
+    <Version>1.7.1</Version>
     <ApplicationIcon>Assets\mochi.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
+    <!-- v1.7.1 Liquid Glass shader, compiled from Shaders\LiquidGlass.fx by fxc in CI (see build.yml).
+         A local build without it still works: the glass falls back to a plain blur. -->
+    <Resource Include="Shaders\LiquidGlass.ps" Condition="Exists('Shaders\LiquidGlass.ps')" />
+    <None Remove="Shaders\LiquidGlass.fx" />
     <!-- interface strings: plain embedded resources (no satellite assemblies, so the single exe has them) -->
     <EmbeddedResource Update="Strings.ru.resx" WithCulture="false" LogicalName="DynamicMochi.Strings_ru.resources" />
     <EmbeddedResource Update="Strings.en.resx" WithCulture="false" LogicalName="DynamicMochi.Strings_en.resources" />

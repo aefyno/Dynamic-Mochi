@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using DynamicMochi.Controls;
 using DynamicMochi.Services;
 
@@ -8,144 +10,176 @@ namespace DynamicMochi;
 
 /// <summary>
 /// v1.7 Liquid Glass and gooey motion.
-/// Glass: Windows blurs the desktop behind the window; the window region keeps that blur inside the capsule,
-/// the lyric strip and the neck between them. The region follows every animation frame while something moves.
+/// Glass (v1.7.1): the screen area behind the island is copied ~30 times a second (the island itself is excluded
+/// from capture) and drawn inside the capsule and the lyric strip through the LiquidGlass pixel shader:
+/// blur, lens bending at the rim, colour split, adaptive tint and rim light.
 /// </summary>
 public partial class IslandWindow
 {
-    private bool _glassOn;
-    private string _glassKey = "";
-    private DateTime _glassPumpUntil;
-    private bool _glassPumping;
-    private bool _stripShown;     // the lyric strip is out (or on its way out) of the capsule
+    private bool _glassOn;          // the glass theme is active
+    private bool _glassShader;      // the liquid shader loaded (otherwise a plain blur)
+    private bool _stripShown;       // the lyric strip is out (or on its way out) of the capsule
+    private Glass? _glass;
+    private DispatcherTimer? _glassTimer;
+    private Effect? _capsuleFx, _stripFx;
+    private ImageBrush? _capsuleBack, _stripBack;
+    private DateTime _glassFastUntil;
 
-    private static readonly Brush StripRimBrush = MakeStripRim();
+    private static readonly Color GlassTint = Color.FromArgb(97, 12, 12, 18);   // ~38 % dark
 
-    private static Brush MakeStripRim()
-    {
-        var b = new LinearGradientBrush { StartPoint = new Point(0.2, 0), EndPoint = new Point(0.8, 1) };
-        b.GradientStops.Add(new GradientStop(Color.FromArgb(0x88, 255, 255, 255), 0));
-        b.GradientStops.Add(new GradientStop(Color.FromArgb(0x1C, 255, 255, 255), 0.5));
-        b.GradientStops.Add(new GradientStop(Color.FromArgb(0x48, 255, 255, 255), 1));
-        b.Freeze();
-        return b;
-    }
-
-    /// <summary>Glass theme on or off: blur, region, rim, and no dark shapes behind the see-through capsule.</summary>
+    /// <summary>Glass theme on or off.</summary>
     private void ApplyGlass()
     {
         bool want = _theme?.Glass == true && _hwnd != IntPtr.Zero;
-        GlassRim.Visibility = want ? Visibility.Visible : Visibility.Collapsed;
-        GlowShape.Visibility = want ? Visibility.Collapsed : Visibility.Visible;
-        StripShadowShape.Background = want ? Brushes.Transparent : Brushes.Black;
-        if (want)
-        {
-            LyricsStrip.BorderBrush = StripRimBrush;
-            LyricsStrip.BorderThickness = new Thickness(1);
-            // the reverse corners of the notch sit outside the blur region, so they would only be cut
-            EarLeft.Visibility = EarRight.Visibility = Visibility.Collapsed;
-        }
-        else
-        {
-            LyricsStrip.SetResourceReference(System.Windows.Controls.Border.BorderBrushProperty, "BorderBrush");
-            EarLeft.Visibility = EarRight.Visibility = _settings.Shape == 1 ? Visibility.Visible : Visibility.Collapsed;
-        }
-        UpdateNeckFill();
-
         if (want != _glassOn)
         {
             _glassOn = want;
-            _glassKey = "";
-            Glass.SetBlur(_hwnd, want);
-            Repaint();
+            if (want) StartGlass();
+            else StopGlass();
         }
-        if (want) UpdateGlassRegion();
+        UpdateNeckFill();
+        if (!want)
+        {
+            EarLeft.Visibility = EarRight.Visibility = _settings.Shape == 1 ? Visibility.Visible : Visibility.Collapsed;
+            return;
+        }
+        // the notch's reverse corners are solid black, which reads wrong next to glass
+        EarLeft.Visibility = EarRight.Visibility = Visibility.Collapsed;
+        // the strip is see-through: the glass behind it does the work
+        StripTopStop.BeginAnimation(GradientStop.ColorProperty, null);
+        StripEndStop.BeginAnimation(GradientStop.ColorProperty, null);
+        StripTopStop.Color = StripEndStop.Color = _glassShader ? Colors.Transparent : WithAlpha(_theme!.GradTop, 0.9);
+        GlassTick();
+    }
+
+    private void StartGlass()
+    {
+        Glass.ExcludeFromCapture(_hwnd, true);
+        _glass = new Glass();
+        try
+        {
+            _capsuleFx = new LiquidGlassEffect();
+            _stripFx = new LiquidGlassEffect { Refraction = 8 };
+            _glassShader = true;
+        }
+        catch (Exception ex)
+        {
+            // a build without the compiled shader: frosted blur only
+            Log.Write("glass shader: " + ex.Message);
+            _capsuleFx = new BlurEffect { Radius = 10, KernelType = KernelType.Gaussian };
+            _stripFx = new BlurEffect { Radius = 10, KernelType = KernelType.Gaussian };
+            _glassShader = false;
+        }
+        _capsuleBack = MakeBackBrush();
+        _stripBack = MakeBackBrush();
+        GlassBackdrop.Fill = _capsuleBack;
+        GlassBackdrop.Effect = _capsuleFx;
+        GlassBackdrop.Opacity = _glassShader ? 1 : 0.55;   // without the shader the theme tint underneath darkens it
+        GlassBackdrop.Visibility = Visibility.Visible;
+        GlassRim.Visibility = _glassShader ? Visibility.Collapsed : Visibility.Visible;   // the shader lights its own rim
+        StripShadowShape.Background = _stripBack;
+        StripShadowShape.Effect = _stripFx;
+
+        _glassTimer ??= new DispatcherTimer(DispatcherPriority.Render, Dispatcher);
+        _glassTimer.Interval = TimeSpan.FromMilliseconds(33);
+        _glassTimer.Tick -= GlassTimer_Tick;
+        _glassTimer.Tick += GlassTimer_Tick;
+        _glassTimer.Start();
+        Log.Write($"glass: on, shader {(_glassShader ? "liquid" : "blur fallback")}");
+    }
+
+    private void StopGlass()
+    {
+        _glassTimer?.Stop();
+        Glass.ExcludeFromCapture(_hwnd, false);
+        _glass?.Dispose();
+        _glass = null;
+        GlassBackdrop.Visibility = Visibility.Collapsed;
+        GlassBackdrop.Fill = null;
+        GlassBackdrop.Effect = null;
+        GlassRim.Visibility = Visibility.Collapsed;
+        StripShadowShape.Background = Brushes.Black;
+        StripShadowShape.Effect = StripShadow;
+        _capsuleBack = _stripBack = null;
+        _capsuleFx = _stripFx = null;
+    }
+
+    private static ImageBrush MakeBackBrush()
+    {
+        var b = new ImageBrush { Stretch = Stretch.Fill, ViewboxUnits = BrushMappingMode.RelativeToBoundingBox };
+        RenderOptions.SetBitmapScalingMode(b, BitmapScalingMode.Linear);   // smooth upscale = part of the blur
+        return b;
     }
 
     /// <summary>The neck is painted like the top of the strip, so the drop and the strip read as one liquid.</summary>
     private void UpdateNeckFill()
     {
         // the theme's own colour, not StripTopStop.Color: that one may still be mid-animation from the old theme
-        var b = new SolidColorBrush(WithAlpha(_theme.GradTop, 0.9));
+        var c = _theme?.Glass == true ? Color.FromArgb(150, 24, 24, 30) : WithAlpha(_theme!.GradTop, 0.9);
+        var b = new SolidColorBrush(c);
         b.Freeze();
         Neck.Fill = b;
     }
 
-    /// <summary>Keep the blur region in step with moving shapes for this long (every rendered frame).</summary>
+    /// <summary>Capture every frame (instead of ~30 fps) for this long, while the island moves.</summary>
     private void PumpGlass(double ms)
     {
-        if (!_glassOn) return;
+        if (!_glassOn || _glassTimer == null) return;
         var until = DateTime.UtcNow.AddMilliseconds(ms * Math.Max(1, _settings.AnimationSpeed) + 120);
-        if (until > _glassPumpUntil) _glassPumpUntil = until;
-        if (_glassPumping) return;
-        _glassPumping = true;
-        CompositionTarget.Rendering += GlassFrame;
+        if (until > _glassFastUntil) _glassFastUntil = until;
+        _glassTimer.Interval = TimeSpan.FromMilliseconds(15);
     }
 
-    private void GlassFrame(object? sender, EventArgs e)
+    private void GlassTimer_Tick(object? sender, EventArgs e)
     {
-        UpdateGlassRegion();
-        if (_glassOn && DateTime.UtcNow <= _glassPumpUntil) return;
-        CompositionTarget.Rendering -= GlassFrame;
-        _glassPumping = false;
+        GlassTick();
+        if (_glassTimer != null && DateTime.UtcNow > _glassFastUntil && _glassTimer.Interval.TotalMilliseconds < 30)
+            _glassTimer.Interval = TimeSpan.FromMilliseconds(33);
     }
 
-    /// <summary>Recomputes the blur shapes; does nothing when they have not moved since the last frame.</summary>
-    private void UpdateGlassRegion()
+    /// <summary>Copies what is behind the capsule (and the strip) and feeds it to the glass.</summary>
+    private void GlassTick()
     {
-        if (!_glassOn || _hwnd == IntPtr.Zero) return;
-        var source = PresentationSource.FromVisual(this);
-        if (source?.CompositionTarget == null) return;
-        var device = source.CompositionTarget.TransformToDevice;
+        if (!_glassOn || _glass == null || _hidden || !IsVisible) return;
+        if (!TryScreenRect(GlassBackdrop, out var cap)) return;
+        bool strip = LyricsStrip.Visibility == Visibility.Visible && LyricsStrip.Opacity > 0.02
+                     && TryScreenRect(StripShadowShape, out _);
+        TryScreenRect(StripShadowShape, out var str);
+        var all = strip ? Rect.Union(cap, str) : cap;
 
-        var shapes = new List<GlassShape>(4);
-        bool notch = _settings.Shape == 1;
-        AddRounded(shapes, Capsule, Capsule.CornerRadius.BottomLeft, device, notch);
-        if (LyricsStrip.Visibility == Visibility.Visible && LyricsStrip.Opacity > 0.03)
-            AddRounded(shapes, LyricsStrip, LyricsStrip.CornerRadius.TopLeft, device, false);
-        if (FirstRunHint.Visibility == Visibility.Visible && FirstRunHint.Opacity > 0.03)
-            AddRounded(shapes, FirstRunHint, FirstRunHint.CornerRadius.TopLeft, device, false);
-        if (Neck.ActualWidth > 0.5) AddOutline(shapes, Neck, device);
+        var px = new Int32Rect((int)Math.Floor(all.X), (int)Math.Floor(all.Y), (int)Math.Ceiling(all.Width), (int)Math.Ceiling(all.Height));
+        if (!_glass.Grab(px, 3) || _glass.Bitmap is not { } bmp) return;
 
-        string key = string.Join(";", shapes.Select(s => s.Polygon != null
-            ? string.Join(",", s.Polygon.Select(p => $"{p.X:0},{p.Y:0}"))
-            : $"{s.Bounds.X:0},{s.Bounds.Y:0},{s.Bounds.Width:0},{s.Bounds.Height:0},{s.RadiusX:0},{s.RadiusY:0}"));
-        if (key == _glassKey) return;
-        _glassKey = key;
-        Glass.SetRegion(_hwnd, shapes);
+        if (_capsuleBack!.ImageSource != bmp) _capsuleBack.ImageSource = bmp;
+        if (_stripBack!.ImageSource != bmp) _stripBack.ImageSource = bmp;
+        _capsuleBack.Viewbox = Relative(cap, px);
+        if (strip) _stripBack.Viewbox = Relative(str, px);
+
+        if (_capsuleFx is LiquidGlassEffect cf)
+            cf.Shape(GlassBackdrop.ActualWidth, GlassBackdrop.ActualHeight, Capsule.CornerRadius.BottomLeft, _settings.Shape == 1);
+        if (strip && _stripFx is LiquidGlassEffect sf)
+            sf.Shape(StripShadowShape.ActualWidth, StripShadowShape.ActualHeight, LyricsStrip.CornerRadius.TopLeft, false);
     }
 
-    private void AddRounded(List<GlassShape> list, FrameworkElement el, double radius, Matrix device, bool flatTop)
-    {
-        if (!el.IsVisible || el.ActualWidth <= 0 || el.ActualHeight <= 0) return;
-        Rect r;
-        try { r = el.TransformToAncestor(WindowRoot).TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight)); }
-        catch (InvalidOperationException) { return; }
-        var dev = new Rect(r.X * device.M11, r.Y * device.M22, r.Width * device.M11, r.Height * device.M22);
-        double sx = dev.Width / el.ActualWidth, sy = dev.Height / el.ActualHeight;
-        list.Add(new GlassShape(dev, radius * sx, radius * sy, flatTop));
-    }
+    private static Rect Relative(Rect r, Int32Rect all) =>
+        new((r.X - all.X) / all.Width, (r.Y - all.Y) / all.Height, r.Width / all.Width, r.Height / all.Height);
 
-    private void AddOutline(List<GlassShape> list, System.Windows.Shapes.Shape shape, Matrix device)
+    /// <summary>Element bounds on the screen in physical pixels, render transforms (scale, hide slide) included.</summary>
+    private static bool TryScreenRect(FrameworkElement el, out Rect r)
     {
-        if (!shape.IsVisible) return;
-        GeneralTransform tr;
-        try { tr = shape.TransformToAncestor(WindowRoot); }
-        catch (InvalidOperationException) { return; }
-        var flat = shape.RenderedGeometry.GetFlattenedPathGeometry(0.5, ToleranceType.Absolute);
-        var points = new List<Point>();
-        foreach (var fig in flat.Figures)
+        r = Rect.Empty;
+        if (!el.IsVisible || el.ActualWidth < 1 || el.ActualHeight < 1 || PresentationSource.FromVisual(el) == null) return false;
+        try
         {
-            points.Add(fig.StartPoint);
-            foreach (var seg in fig.Segments)
-            {
-                if (seg is PolyLineSegment pl) points.AddRange(pl.Points);
-                else if (seg is LineSegment ln) points.Add(ln.Point);
-            }
+            var a = el.PointToScreen(new Point(0, 0));
+            var b = el.PointToScreen(new Point(el.ActualWidth, el.ActualHeight));
+            r = new Rect(a, b);
+            return r.Width >= 4 && r.Height >= 4;
         }
-        if (points.Count < 3) return;
-        var dev = points.Select(p => { var q = tr.Transform(p); return new Point(q.X * device.M11, q.Y * device.M22); }).ToArray();
-        list.Add(new GlassShape(Rect.Empty, 0, 0, false, dev));
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     // ================= Gooey motion
@@ -242,7 +276,6 @@ public partial class IslandWindow
                     StripShift.BeginAnimation(TranslateTransform.YProperty, null);
                 }
                 Repaint();
-                UpdateGlassRegion();
             };
             LyricsStrip.BeginAnimation(OpacityProperty, fade);
             PumpGlass(300);

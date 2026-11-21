@@ -103,7 +103,6 @@ public partial class IslandWindow : Window
         _hwnd = new WindowInteropHelper(this).Handle;
         Native.MakeToolWindow(_hwnd);
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
-        LayoutUpdated += (_, _) => { if (_glassOn) UpdateGlassRegion(); };   // v1.7: blur region follows layout
         ApplyLayout();
         RegisterHotkey();
         _clipboardHooked = AddClipboardFormatListener(_hwnd);
@@ -272,9 +271,12 @@ public partial class IslandWindow : Window
         var t = _theme;
         if (t.Glass)
         {
-            // glass has no glow: the blur and the rim are the edge
-            AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, 0, dur);
-            StripShadow.Opacity = 0;
+            // glass floats: a soft dark shadow under it for depth, no coloured glow
+            AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, Colors.Black, dur);
+            GlowEffect.BlurRadius = 26;
+            GlowEffect.ShadowDepth = 5;
+            AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, 0.5, dur);
+            StripShadow.Opacity = 0.4;
             return;
         }
         double k = _settings.GlowStrength / 0.5;                 // 0 … 2

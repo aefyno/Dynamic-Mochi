@@ -1,135 +1,119 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace DynamicMochi.Services;
 
-/// <summary>One shape of the island that shows real blur behind it, in device pixels of the window.</summary>
-public readonly record struct GlassShape(Rect Bounds, double RadiusX, double RadiusY, bool FlatTop = false, Point[]? Polygon = null);
-
 /// <summary>
-/// v1.7 Liquid Glass: Windows blurs whatever is behind the island window (DWM blur-behind through the accent
-/// policy), and the window region cuts that blur to the shapes of the capsule and the lyric line.
-/// The region is a pixel mask, so its curved edges are not anti-aliased; the glass rim drawn in WPF covers them.
+/// v1.7.1 Liquid Glass backdrop: copies the screen area behind the island into a small bitmap
+/// (a third of the size, halftone-filtered, which is already a soft first blur pass).
+/// The island window is excluded from screen capture, so the copy shows what is behind it, not the island itself.
+/// v1.7.0 asked Windows to blur instead (accent policy + window region); Windows ignored the region on this
+/// kind of window and painted a big dark rectangle, so that approach is gone.
 /// </summary>
-public static class Glass
+public sealed class Glass : IDisposable
 {
-    private const int WCA_ACCENT_POLICY = 19;
-    private const int ACCENT_DISABLED = 0, ACCENT_ENABLE_BLURBEHIND = 3;
-    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWA_BORDER_COLOR = 34;
-    private const int DWMWCP_DONOTROUND = 1;
-    private const int DWMWA_COLOR_NONE = unchecked((int)0xFFFFFFFE);
-    private const int RGN_OR = 2, RGN_AND = 1;
+    private const uint WDA_NONE = 0, WDA_EXCLUDEFROMCAPTURE = 0x11;
+    private const int HALFTONE = 4;
+    private const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000;
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct AccentPolicy
+    private struct BITMAPINFOHEADER
     {
-        public int AccentState;
-        public int AccentFlags;
-        public uint GradientColor;
-        public int AnimationId;
+        public int biSize, biWidth, biHeight;
+        public short biPlanes, biBitCount;
+        public int biCompression, biSizeImage, biXPelsPerMeter, biYPelsPerMeter, biClrUsed, biClrImportant;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WindowCompositionAttributeData
-    {
-        public int Attribute;
-        public IntPtr Data;
-        public int SizeOfData;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X, Y; }
-
-    [DllImport("user32.dll")] private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
-    [DllImport("user32.dll")] private static extern int SetWindowRgn(IntPtr hwnd, IntPtr hRgn, bool redraw);
-    [DllImport("gdi32.dll")] private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
-    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
-    [DllImport("gdi32.dll")] private static extern IntPtr CreatePolygonRgn(POINT[] points, int count, int mode);
-    [DllImport("gdi32.dll")] private static extern int CombineRgn(IntPtr dest, IntPtr src1, IntPtr src2, int mode);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern bool DeleteDC(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr dc, IntPtr obj);
     [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);
-    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateDIBSection(IntPtr dc, ref BITMAPINFOHEADER bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
+    [DllImport("gdi32.dll")] private static extern int SetStretchBltMode(IntPtr dc, int mode);
+    [DllImport("gdi32.dll")] private static extern bool SetBrushOrgEx(IntPtr dc, int x, int y, IntPtr old);
+    [DllImport("gdi32.dll")] private static extern bool StretchBlt(IntPtr dest, int dx, int dy, int dw, int dh, IntPtr src, int sx, int sy, int sw, int sh, uint rop);
+    [DllImport("gdi32.dll")] private static extern bool GdiFlush();
 
-    /// <summary>Turns the blur on or off. Off also removes the region, so the window is whole again.</summary>
-    public static bool SetBlur(IntPtr hwnd, bool on)
+    private IntPtr _dc, _dib, _old, _bits;
+    private int _w, _h;
+
+    /// <summary>The latest copy of what is behind the island (Bgr32), or null before the first capture.</summary>
+    public WriteableBitmap? Bitmap { get; private set; }
+
+    /// <summary>Hides the island from every screen capture (and so from our own); also from screenshots and recordings.</summary>
+    public static bool ExcludeFromCapture(IntPtr hwnd, bool on)
     {
-        if (hwnd == IntPtr.Zero) return false;
+        bool ok = hwnd != IntPtr.Zero && SetWindowDisplayAffinity(hwnd, on ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
+        Log.Write($"glass: exclude from capture {(on ? "on" : "off")} {(ok ? "ok" : "failed " + Marshal.GetLastWin32Error())}");
+        return ok;
+    }
+
+    /// <summary>Copies the screen rectangle (physical pixels) at 1/<paramref name="shrink"/> size.</summary>
+    public bool Grab(Int32Rect screen, int shrink)
+    {
+        if (screen.Width < 4 || screen.Height < 4) return false;
+        int w = Math.Max(2, (screen.Width + shrink - 1) / shrink), h = Math.Max(2, (screen.Height + shrink - 1) / shrink);
         try
         {
-            if (on)
-            {
-                // no system border or rounding on top of our own shape
-                int round = DWMWCP_DONOTROUND, none = DWMWA_COLOR_NONE;
-                DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
-                DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref none, sizeof(int));
-            }
-            var policy = new AccentPolicy { AccentState = on ? ACCENT_ENABLE_BLURBEHIND : ACCENT_DISABLED };
-            int size = Marshal.SizeOf<AccentPolicy>();
-            IntPtr ptr = Marshal.AllocHGlobal(size);
+            if (w != _w || h != _h || _dc == IntPtr.Zero) Allocate(w, h);
+            IntPtr src = GetDC(IntPtr.Zero);
             try
             {
-                Marshal.StructureToPtr(policy, ptr, false);
-                var data = new WindowCompositionAttributeData { Attribute = WCA_ACCENT_POLICY, Data = ptr, SizeOfData = size };
-                bool ok = SetWindowCompositionAttribute(hwnd, ref data) != 0;
-                if (!on) SetWindowRgn(hwnd, IntPtr.Zero, true);
-                Log.Write($"glass: blur {(on ? "on" : "off")} {(ok ? "ok" : "refused by Windows")}");
-                return ok;
+                SetStretchBltMode(_dc, HALFTONE);
+                SetBrushOrgEx(_dc, 0, 0, IntPtr.Zero);
+                if (!StretchBlt(_dc, 0, 0, w, h, src, screen.X, screen.Y, screen.Width, screen.Height, SRCCOPY | CAPTUREBLT)) return false;
             }
             finally
             {
-                Marshal.FreeHGlobal(ptr);
+                ReleaseDC(IntPtr.Zero, src);
             }
+            GdiFlush();
+            Bitmap!.WritePixels(new Int32Rect(0, 0, w, h), _bits, w * h * 4, w * 4);
+            return true;
         }
         catch (Exception ex)
         {
-            Log.Write("glass: " + ex.Message);
+            Log.Write("glass capture: " + ex.Message);
             return false;
         }
     }
 
-    /// <summary>Cuts the window (and the blur) to these shapes. An empty list hides the window completely.</summary>
-    public static void SetRegion(IntPtr hwnd, IReadOnlyList<GlassShape> shapes)
+    private void Allocate(int w, int h)
     {
-        if (hwnd == IntPtr.Zero) return;
-        IntPtr all = CreateRectRgn(0, 0, 0, 0);
-        try
+        Free();
+        var bmi = new BITMAPINFOHEADER
         {
-            foreach (var s in shapes)
-            {
-                IntPtr part = Build(s);
-                if (part == IntPtr.Zero) continue;
-                CombineRgn(all, all, part, RGN_OR);
-                DeleteObject(part);
-            }
-            // on success Windows owns the region and frees it
-            if (SetWindowRgn(hwnd, all, true) != 0) all = IntPtr.Zero;
-        }
-        catch (Exception ex)
-        {
-            Log.Write("glass region: " + ex.Message);
-        }
-        finally
-        {
-            if (all != IntPtr.Zero) DeleteObject(all);
-        }
+            biSize = Marshal.SizeOf<BITMAPINFOHEADER>(), biWidth = w, biHeight = -h,   // negative = top-down rows
+            biPlanes = 1, biBitCount = 32,
+        };
+        _dc = CreateCompatibleDC(IntPtr.Zero);
+        _dib = CreateDIBSection(_dc, ref bmi, 0, out _bits, IntPtr.Zero, 0);
+        _old = SelectObject(_dc, _dib);
+        _w = w;
+        _h = h;
+        Bitmap = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgr32, null);
     }
 
-    private static IntPtr Build(GlassShape s)
+    private void Free()
     {
-        if (s.Polygon is { Length: >= 3 } poly)
+        if (_dc != IntPtr.Zero)
         {
-            var pts = poly.Select(p => new POINT { X = (int)Math.Round(p.X), Y = (int)Math.Round(p.Y) }).ToArray();
-            return CreatePolygonRgn(pts, pts.Length, 2 /* WINDING */);
+            SelectObject(_dc, _old);
+            DeleteObject(_dib);
+            DeleteDC(_dc);
         }
-        var b = s.Bounds;
-        if (b.IsEmpty || b.Width < 1 || b.Height < 1) return IntPtr.Zero;
-        int l = (int)Math.Round(b.Left), t = (int)Math.Round(b.Top), r = (int)Math.Round(b.Right), btm = (int)Math.Round(b.Bottom);
-        int ex = Math.Max(0, (int)Math.Round(s.RadiusX * 2)), ey = Math.Max(0, (int)Math.Round(s.RadiusY * 2));
-        if (!s.FlatTop) return CreateRoundRectRgn(l, t, r + 1, btm + 1, ex, ey);
-        // notch: round only at the bottom — a taller rounded rect, cut flat at the top
-        IntPtr round = CreateRoundRectRgn(l, t - ey, r + 1, btm + 1, ex, ey);
-        IntPtr box = CreateRectRgn(l, t, r + 1, btm + 1);
-        CombineRgn(round, round, box, RGN_AND);
-        DeleteObject(box);
-        return round;
+        _dc = _dib = _old = _bits = IntPtr.Zero;
+        _w = _h = 0;
+    }
+
+    public void Dispose()
+    {
+        Free();
+        Bitmap = null;
     }
 }
