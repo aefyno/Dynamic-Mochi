@@ -276,7 +276,9 @@ public partial class IslandWindow : Window
     {
         var b = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
         b.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
-        b.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0.55));
+        b.GradientStops.Add(new GradientStop(Colors.Transparent, 0.12));
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(150, 0, 0, 0), 0.45));
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0.8));
         b.Freeze();
         return b;
     }
@@ -444,7 +446,7 @@ public partial class IslandWindow : Window
         {
             P(LinearGradientBrush.StartPointProperty, new Point(0.5, 0));
             P(LinearGradientBrush.EndPointProperty, new Point(0.5, 1));
-            O(BgMidStop, 0.55);
+            O(BgMidStop, 0.72);   // v1.8.1: a longer fade out of the black top edge
             O(BgEndStop, 1.0);
             return;
         }

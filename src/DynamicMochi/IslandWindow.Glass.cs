@@ -126,38 +126,59 @@ public partial class IslandWindow
         if (!_glassOn || _glassTimer == null) return;
         var until = DateTime.UtcNow.AddMilliseconds(ms * Math.Max(1, _settings.AnimationSpeed) + 120);
         if (until > _glassFastUntil) _glassFastUntil = until;
-        // v1.8: no faster capture while animating — copying the screen every frame made the motion stutter
+        // v1.8.1: while the capsule moves, only the crop into the last copy follows it, every frame (cheap);
+        // the screen itself is still copied ~30 times a second by the timer
+        if (_glassFollowing) return;
+        _glassFollowing = true;
+        CompositionTarget.Rendering += GlassFollow;
     }
 
-    private void GlassTimer_Tick(object? sender, EventArgs e)
+    private bool _glassFollowing;
+    private Int32Rect _glassArea;   // the screen area of the last copy: the whole island window
+
+    private void GlassFollow(object? sender, EventArgs e)
     {
-        GlassTick();
-        if (_glassTimer != null && DateTime.UtcNow > _glassFastUntil && _glassTimer.Interval.TotalMilliseconds < 30)
-            _glassTimer.Interval = TimeSpan.FromMilliseconds(33);
+        UpdateGlassViews();
+        if (_glassOn && DateTime.UtcNow <= _glassFastUntil) return;
+        CompositionTarget.Rendering -= GlassFollow;
+        _glassFollowing = false;
     }
 
-    /// <summary>Copies what is behind the capsule (and the strip) and feeds it to the glass.</summary>
+    private void GlassTimer_Tick(object? sender, EventArgs e) => GlassTick();
+
+    /// <summary>
+    /// Copies what is behind the whole island window. v1.8.1: the copy used to cover only the capsule; while the
+    /// capsule shrank between two copies, the old picture was squeezed into the new size, so everything behind the
+    /// glass seemed to jump up. Now the copy is a fixed area and only the crop follows the capsule.
+    /// </summary>
     private void GlassTick()
     {
         if (!_glassOn || _glass == null || _hidden || !IsVisible) return;
-        if (!TryScreenRect(GlassBackdrop, out var cap)) return;
-        bool strip = LyricsStrip.Visibility == Visibility.Visible && LyricsStrip.Opacity > 0.02
-                     && TryScreenRect(StripShadowShape, out _);
-        TryScreenRect(StripShadowShape, out var str);
-        var all = strip ? Rect.Union(cap, str) : cap;
-
-        var px = new Int32Rect((int)Math.Floor(all.X), (int)Math.Floor(all.Y), (int)Math.Ceiling(all.Width), (int)Math.Ceiling(all.Height));
-        if (!_glass.Grab(px, 2) || _glass.Bitmap is not { } bmp) return;   // v1.7.3: half size = soft first blur pass
-
+        if (!TryScreenRect(WindowRoot, out var win)) return;
+        var px = new Int32Rect((int)Math.Floor(win.X), (int)Math.Floor(win.Y), (int)Math.Ceiling(win.Width), (int)Math.Ceiling(win.Height));
+        if (!_glass.Grab(px, 2) || _glass.Bitmap is not { } bmp) return;   // half size = soft first blur pass
+        _glassArea = px;
         if (_capsuleBack!.ImageSource != bmp) _capsuleBack.ImageSource = bmp;
         if (_stripBack!.ImageSource != bmp) _stripBack.ImageSource = bmp;
-        _capsuleBack.Viewbox = Relative(cap, px);
-        if (strip) _stripBack.Viewbox = Relative(str, px);
+        UpdateGlassViews();
+    }
 
-        if (_capsuleFx is LiquidGlassEffect cf)
-            cf.Shape(GlassBackdrop.ActualWidth, GlassBackdrop.ActualHeight, Capsule.CornerRadius.BottomLeft, _settings.Shape == 1);
-        if (strip && _stripFx is LiquidGlassEffect sf)
-            sf.Shape(StripShadowShape.ActualWidth, StripShadowShape.ActualHeight, LyricsStrip.CornerRadius.TopLeft, false);
+    /// <summary>Points the capsule and the strip at their part of the last copy (and sets the glass shape).</summary>
+    private void UpdateGlassViews()
+    {
+        if (!_glassOn || _capsuleBack == null || _stripBack == null || _glassArea.Width < 4) return;
+        if (TryScreenRect(GlassBackdrop, out var cap))
+        {
+            _capsuleBack.Viewbox = Relative(cap, _glassArea);
+            if (_capsuleFx is LiquidGlassEffect cf)
+                cf.Shape(GlassBackdrop.ActualWidth, GlassBackdrop.ActualHeight, Capsule.CornerRadius.BottomLeft, _settings.Shape == 1);
+        }
+        if (LyricsStrip.Visibility == Visibility.Visible && LyricsStrip.Opacity > 0.02 && TryScreenRect(StripShadowShape, out var str))
+        {
+            _stripBack.Viewbox = Relative(str, _glassArea);
+            if (_stripFx is LiquidGlassEffect sf)
+                sf.Shape(StripShadowShape.ActualWidth, StripShadowShape.ActualHeight, LyricsStrip.CornerRadius.TopLeft, false);
+        }
     }
 
     private static Rect Relative(Rect r, Int32Rect all) =>

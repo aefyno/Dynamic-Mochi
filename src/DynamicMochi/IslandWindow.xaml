@@ -28,17 +28,18 @@
                     <ScaleTransform x:Name="RootScale" ScaleX="0" ScaleY="0"/>
                 </Grid.RenderTransform>
 
-                <!-- Notch shape: small reverse corners so the notch flows out of the screen edge -->
-                <Path x:Name="EarLeft" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
-                      Data="M0,0 L8,0 L8,8 A8,8 0 0 0 0,0 Z" Fill="Black" IsHitTestVisible="False">
+                <!-- Notch shape: reverse corners so the notch flows out of the screen edge.
+                     v1.8.1: 16 px with a softer, longer curve (was an 8 px quarter circle) -->
+                <Path x:Name="EarLeft" Width="16" Height="12" HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                      Data="M0,0 L16,0 L16,12 C16,4 10,0 0,0 Z" Fill="Black" IsHitTestVisible="False">
                     <Path.RenderTransform>
-                        <TranslateTransform X="-8"/>
+                        <TranslateTransform X="-15.5"/>
                     </Path.RenderTransform>
                 </Path>
-                <Path x:Name="EarRight" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"
-                      Data="M0,0 L8,0 A8,8 0 0 0 0,8 Z" Fill="Black" IsHitTestVisible="False">
+                <Path x:Name="EarRight" Width="16" Height="12" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"
+                      Data="M0,0 L16,0 C6,0 0,4 0,12 Z" Fill="Black" IsHitTestVisible="False">
                     <Path.RenderTransform>
-                        <TranslateTransform X="8"/>
+                        <TranslateTransform X="15.5"/>
                     </Path.RenderTransform>
                 </Path>
 
