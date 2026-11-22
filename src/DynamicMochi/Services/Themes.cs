@@ -58,7 +58,7 @@ public static class Themes
         ToggleOff: C("#3A3A3C"), Equalizer: C(accent),
         ArtworkTint: false, TintOpacity: 0, IsLight: false);
 
-    /// <summary>Order = card grid: Liquid Glass, White, OLED, Gradient, Purple / Red, Blue, Green, Orange.</summary>
+    /// <summary>Order = card grid, 5 per row: Glass, OLED, Gradient, Gray, Purple / Pink, Red, Blue, Green, Orange.</summary>
     public static readonly IReadOnlyList<Theme> All = new List<Theme>
     {
         // v1.7: Liquid Glass — a dark see-through tint over a real blur of whatever is behind the island.
@@ -71,15 +71,6 @@ public static class Themes
             Border: Colors.Transparent, Glow: Colors.Transparent, ShadowOpacity: 0,
             ToggleOff: A("#FFFFFF", 0.22), Equalizer: C("#FFFFFF"),
             ArtworkTint: false, TintOpacity: 0, IsLight: false, Glass: true),   // v1.7.2: clear glass, no artwork colour
-
-        new("Белая",
-            GradTop: C("#F5F5F7"), GradMid: C("#F5F5F7"), GradEnd: C("#F5F5F7"),
-            Surface: C("#FFFFFF"), SurfaceHover: C("#EBEBF0"),
-            Fg: C("#111114"), Sub: A("#111114", 0.60), Faint: A("#111114", 0.40),
-            Accent: C("#0A84FF"), AccentFg: C("#FFFFFF"),
-            Border: A("#000000", 0.08), Glow: Colors.Transparent, ShadowOpacity: 0.25,
-            ToggleOff: C("#D1D1D6"), Equalizer: C("#0A84FF"),
-            ArtworkTint: true, TintOpacity: 0.18, IsLight: true),
 
         // v1.6: OLED Black is total black — no gradient, no glow, no artwork blob (SPEC-v1.6 §2)
         new("OLED",
@@ -102,12 +93,14 @@ public static class Themes
             ToggleOff: C("#3A3A3C"), Equalizer: C("#C9A6FF"),
             ArtworkTint: false, TintOpacity: 0, IsLight: false, Vertical: true),
 
-        // v1.4: brighter, the colour reads at first sight (SPEC-v1.4 §15); v1.6: + purple
-        Colored("Фиолетовая", "#5B1A9E", "#26093F", "#B45CFF", "#FFFFFF", 0.5),
-        Colored("Красная", "#8E0F1E", "#3B0710", "#FF3B4A", "#FFFFFF", 0.5),
-        Colored("Синяя", "#0F3FA6", "#0A1A46", "#3D8BFF", "#FFFFFF", 0.5),
-        Colored("Зелёная", "#0E7036", "#062A18", "#32D74B", "#000000", 0.5),
-        Colored("Оранжевая", "#9C4806", "#3E1C03", "#FF9F0A", "#000000", 0.5),
+        // v1.8: darker (tester), Red is a true red (no crimson/pink cast), + Gray and Pink; White is gone
+        Colored("Серая", "#38383E", "#141416", "#E5E5EA", "#000000", 0.35),
+        Colored("Фиолетовая", "#46147E", "#1C0731", "#B45CFF", "#FFFFFF", 0.5),
+        Colored("Розовая", "#84204F", "#2C0A1B", "#FF5FA8", "#FFFFFF", 0.5),
+        Colored("Красная", "#8A0B06", "#2C0302", "#FF3B30", "#FFFFFF", 0.5),
+        Colored("Синяя", "#0C3488", "#071436", "#3D8BFF", "#FFFFFF", 0.5),
+        Colored("Зелёная", "#0A5A2B", "#041F10", "#32D74B", "#000000", 0.5),
+        Colored("Оранжевая", "#7F3D05", "#2E1602", "#FF9F0A", "#000000", 0.5),
     };
 
     public const string GradientName = "Градиент";
@@ -129,12 +122,14 @@ public static class Themes
 
     /// <summary>Unknown or removed theme names (e.g. "Чёрная", "Красно-чёрная") silently fall back to OLED.</summary>
     public static Theme Find(string? name) =>
-        All.FirstOrDefault(t => t.Name == name) ?? All.First(t => t.Name == Default);
+        All.FirstOrDefault(t => t.Name == (name == "Белая" ? "Серая" : name))   // v1.8: White was removed → Gray
+        ?? All.First(t => t.Name == Default);
 
     /// <summary>Localised theme name (the stored key stays Russian for compatibility).</summary>
     public static string Title(Theme t) => Loc.T("theme." + t.Name switch
     {
-        "Белая" => "white", "OLED" => "oled", GlassName => "glass", GradientName => "gradient", "Фиолетовая" => "purple",
+        "OLED" => "oled", GlassName => "glass", GradientName => "gradient", "Фиолетовая" => "purple",
+        "Серая" => "gray", "Розовая" => "pink",
         "Красная" => "red", "Синяя" => "blue", "Зелёная" => "green", _ => "orange",
     });
 }

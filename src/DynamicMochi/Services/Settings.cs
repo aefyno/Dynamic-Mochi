@@ -42,6 +42,8 @@ public sealed class Settings
     public bool HideInFullscreen { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;   // v1.6.2: on by default, old files without the key get it too
     public bool ShowPowerTab { get; set; } = true;       // v1.6: sleep / lock / shut down tab
+    public bool ClipboardHistory { get; set; } = true;   // v1.8: clipboard history tab
+    public int ClipboardSize { get; set; } = 25;         // v1.8: 10 / 25 / 50 items
     public bool HomeWeatherBlock { get; set; } = true;   // v1.6: Home bottom bar
     public bool HomeQuickButtons { get; set; } = true;
     public bool DoNotDisturb { get; set; }

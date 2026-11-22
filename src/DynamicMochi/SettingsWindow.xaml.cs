@@ -536,6 +536,12 @@ public partial class SettingsWindow : Window
                         MakeToggle(S.HomeQuickButtons, v => S.HomeQuickButtons = v)),
                     new(Loc.T("set.powertab"), Loc.T("set.powertab.d"), () =>
                         MakeToggle(S.ShowPowerTab, v => S.ShowPowerTab = v)),
+                    new(Loc.T("set.clip"), Loc.T("set.clip.d"), () =>
+                        MakeToggle(S.ClipboardHistory, v => S.ClipboardHistory = v, rerender: true)),
+                    new(Loc.T("set.clipsize"), Loc.T("set.clipsize.d"), () =>
+                        MakeSegmented(new[] { "10", "25", "50" }, S.ClipboardSize switch { 10 => 0, 50 => 2, _ => 1 },
+                            i => S.ClipboardSize = i switch { 0 => 10, 2 => 50, _ => 25 }),
+                        Disabled: () => S.ClipboardHistory ? null : Loc.T("set.clipsize.na")),
                     new(Loc.T("set.dnd"), Loc.T("set.dnd.d"), () =>
                         MakeToggle(S.DoNotDisturb, v => S.DoNotDisturb = v)),
                 }),
@@ -777,8 +783,8 @@ public partial class SettingsWindow : Window
 
     private FrameworkElement ThemeGrid()
     {
-        // v1.7: 9 themes, 3 per row
-        var panel = new UniformGrid { Columns = 3 };
+        // v1.8: 10 themes, 5 per row
+        var panel = new UniformGrid { Columns = 5 };
         var cards = new List<(Button, Border, Theme)>();
         foreach (var theme in Themes.All)
         {

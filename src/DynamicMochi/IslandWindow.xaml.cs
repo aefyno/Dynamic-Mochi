@@ -21,10 +21,12 @@ public partial class IslandWindow : Window
 {
     // Capsule sizes before the user scale (Settings.Scale is applied as a LayoutTransform)
     private const double PlayingW = 420, IdleW = 300, DetailH = 58;     // collapsed view (v1.4 default, SPEC-v1.4 §4)
-    private const double MinPlayW = 360, MinH = 48;                     // v1.7.4 resting view (default), bigger
+    private const double MinH = 48;                                     // v1.7.4 resting view (default), idle
+    private const double MinPlayW = 430, MinPlayH = 62;                 // v1.8 resting player: title + lyric line
     private double MinIdleW => MinWeather.Visibility == Visibility.Visible ? 216 : 136;   // time (+ weather)
     private const double ExpandedW = 600;
     private const double HomeWithBarH = 262, PowerH = 218;   // v1.6: Home bottom bar (+44 + 10), power tiles
+    private const double ClipH = 360;                         // v1.8: clipboard history
     private const double HomeH = 230, MusicH = 252, MusicWithLyricsH = 304, CalendarH = 330, WeatherH = 436, SettingsH = 350;
     private const double BaseWindowW = 700, BaseWindowH = 500;
 
@@ -111,7 +113,7 @@ public partial class IslandWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_CLIPBOARDUPDATE) OnClipboardUpdate();
+        if (msg == WM_CLIPBOARDUPDATE) { RecordClipboard(); OnClipboardUpdate(); }
         if (msg == Native.WM_HOTKEY && wParam.ToInt32() == 1)
         {
             handled = true;
@@ -199,8 +201,9 @@ public partial class IslandWindow : Window
 
         // appear from a point like a drop: width first, height a beat later, both wobble into place.
         // Always runs, otherwise the island stays invisible.
-        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0, 1, Dur(600)) { EasingFunction = new SpringEase(8, 11) });
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0, 1, Dur(600)) { EasingFunction = new SpringEase(8, 12), BeginTime = Dur(40) });
+        var grow = new DoubleAnimation(0, 1, Dur(420)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
         PumpGlass(800);
 
         _uiTimer.Start();
@@ -267,6 +270,17 @@ public partial class IslandWindow : Window
     /// v1.7.5: live gradient on the colour themes (Settings → Appearance → Live gradient): three shades of the
     /// theme colour (Gradient: the bottom colour) drift over the dark background. Replaces the v1.7.4 patterns.
     /// </summary>
+    private static readonly Brush NotchMask = MakeNotchMask();
+
+    private static Brush MakeNotchMask()
+    {
+        var b = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        b.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
+        b.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 0.55));
+        b.Freeze();
+        return b;
+    }
+
     private void ApplyMesh()
     {
         var t = _theme;
@@ -279,10 +293,13 @@ public partial class IslandWindow : Window
         }
         static double Lum(Color c) => 0.299 * c.R + 0.587 * c.G + 0.114 * c.B;
         var c0 = t.FollowsArt ? BottomColor(bright: true) : Lum(t.GradTop) >= Lum(t.GradEnd) ? t.GradTop : t.GradEnd;
+        // v1.8: darker and only small hue steps, so red stays red (the old ±25° steps turned it pink/magenta)
         Mesh.SetColors(
-            MeshGradient.Shift(c0, 0, 0.12, 0.85),
-            MeshGradient.Shift(c0, 28, 0.22, 0.55),
-            MeshGradient.Shift(c0, -24, 0.05, 0.6));
+            MeshGradient.Shift(c0, 0, 0.04, 0.62),
+            MeshGradient.Shift(c0, 10, 0.10, 0.40),
+            MeshGradient.Shift(c0, -7, 0.0, 0.45));
+        // notch: black along the top edge, like the capsule's own gradient, so the corners and the bezel join seamlessly
+        Mesh.OpacityMask = _settings.Shape == 1 ? NotchMask : null;
         Mesh.Visibility = Visibility.Visible;
         Mesh.Run(_settings.AnimationSpeed > 0);
     }
@@ -566,6 +583,7 @@ public partial class IslandWindow : Window
         "calendar" => CalendarH,
         "weather" => WeatherH,
         "power" => PowerH,
+        "clipboard" => ClipH,
         "settings" => SettingsH,
         _ => HomeBar.Visibility == Visibility.Visible ? HomeWithBarH : HomeH,
     };
@@ -578,7 +596,7 @@ public partial class IslandWindow : Window
     private (double W, double H) CollapsedSize =>
         _notice != null ? (_notice.Width, DetailH)
         : DetailedCollapsed ? (_track != null ? PlayingW : IdleW, DetailH)
-        : (_track != null ? MinPlayW : MinIdleW, MinH);
+        : (_track != null ? (MinPlayW, MinPlayH) : (MinIdleW, MinH));
 
     private double CollapsedWidth => CollapsedSize.W;
 
@@ -774,10 +792,10 @@ public partial class IslandWindow : Window
 
     // ================= Tabs
 
-    private static readonly string[] Pages = { "home", "music", "calendar", "weather", "power", "settings" };
+    private static readonly string[] Pages = { "home", "music", "calendar", "weather", "clipboard", "power", "settings" };
 
     /// <summary>Tabs actually shown (the power tab can be turned off): the pill position follows this list.</summary>
-    private string[] VisiblePages => _settings.ShowPowerTab ? Pages : Pages.Where(p => p != "power").ToArray();
+    private string[] VisiblePages => Pages.Where(p => (p != "power" || _settings.ShowPowerTab) && (p != "clipboard" || _settings.ClipboardHistory)).ToArray();
 
     private void MovePill(string page, bool animate)
     {
@@ -799,6 +817,7 @@ public partial class IslandWindow : Window
         "calendar" => CalendarPage,
         "weather" => WeatherPage,
         "power" => PowerPage,
+        "clipboard" => ClipPage,
         "settings" => SettingsPage,
         _ => HomePage,
     };
@@ -813,7 +832,7 @@ public partial class IslandWindow : Window
 
         MovePill(page, animate);
         if (page != "power") ResetPowerConfirm();
-        foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabPower, "power"), (TabSettings, "settings") })
+        foreach (var (tab, name) in new[] { (TabHome, "home"), (TabMusic, "music"), (TabCalendar, "calendar"), (TabWeather, "weather"), (TabClip, "clipboard"), (TabPower, "power"), (TabSettings, "settings") })
             tab.SetResourceReference(ForegroundProperty, page == name ? "AccentBrush" : "SubBrush");
         SmallClock.Visibility = page == "home" ? Visibility.Collapsed : Visibility.Visible;
 
@@ -861,6 +880,7 @@ public partial class IslandWindow : Window
         if (page == "weather") RefreshWeatherIfStale(TimeSpan.FromMinutes(10));
         if (page == "calendar") RenderCalendar(animateDir: 0);
         if (page == "music") RefreshVolume(force: true);
+        if (page == "clipboard") RenderClips();
         UpdateWeatherFx();
     }
 
@@ -1007,8 +1027,9 @@ public partial class IslandWindow : Window
         QuickPower.Visibility = _settings.ShowPowerTab ? Visibility.Visible : Visibility.Collapsed;
         bool showPower = _settings.ShowPowerTab;
         TabPower.Visibility = showPower ? Visibility.Visible : Visibility.Collapsed;
+        TabClip.Visibility = _settings.ClipboardHistory ? Visibility.Visible : Visibility.Collapsed;
         TabBar.Width = VisiblePages.Length * 40;
-        if (!showPower && _page == "power") SelectTab("home", animate: false);
+        if (!VisiblePages.Contains(_page)) SelectTab("home", animate: false);
         else MovePill(_page, animate: false);
         if (_expanded && _page == "home" && !_loading)
             AnimateSize(ExpandedW, PageHeight("home"), 220, new CubicEase { EasingMode = EasingMode.EaseInOut });

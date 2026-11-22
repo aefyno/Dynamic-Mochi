@@ -451,6 +451,7 @@ public partial class IslandWindow
         MiniClock.Visibility = clock;
         MiniDivider.Visibility = clock == Visibility.Visible && _settings.ShowEqualizer ? Visibility.Visible : Visibility.Collapsed;
         MiniLyric.FontSize = Math.Clamp(_settings.LyricsSize - 2.5, 11, 15);
+        MinLyric.FontSize = MiniLyric.FontSize;
         double size = _settings.LyricsSize;
         LyricText.FontSize = size;
         LyricText.LineHeight = size + 5;
@@ -545,7 +546,8 @@ public partial class IslandWindow
     }
 
     /// <summary>The line under the capsule: "under the island", or "in the island" while the minimal view has no room for it.</summary>
-    private bool LyricsUnder => _settings.LyricsPlace == 1 || (_settings.LyricsPlace == 0 && !DetailedCollapsed);
+    // v1.8: the resting player has room for the line itself, so "in the island" means in the island in both views
+    private bool LyricsUnder => _settings.LyricsPlace == 1;
 
     private void UpdateStrip()
     {
@@ -667,7 +669,7 @@ public partial class IslandWindow
 
     // ----- the second line of the collapsed capsule: lyric line, else the artist (+ progress along the bottom edge)
 
-    private bool LyricsInCapsule => _settings.LyricsPlace == 0 && DetailedCollapsed && HasLyricsForTrack && _track?.IsPlaying == true;
+    private bool LyricsInCapsule => _settings.LyricsPlace == 0 && HasLyricsForTrack && _track?.IsPlaying == true;
 
     private int _capsuleIndex = int.MinValue;
 
@@ -683,6 +685,9 @@ public partial class IslandWindow
             SetCapsuleLine(artist, animate: false);
         }
         MiniLyricBox.Visibility = _capsuleLine.Length > 0 || lyric ? Visibility.Visible : Visibility.Collapsed;
+        // the resting player always has a second line: the lyric, or else the artist
+        if (!lyric) MinLyric.Text = _track.Artist;
+        MinLyricBox.Visibility = lyric || MinLyric.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         bool progress = !lyric && DetailedCollapsed && _notice == null && _track.DurationSec > 0;
         CapsuleProgress.Visibility = progress ? Visibility.Visible : Visibility.Collapsed;
         if (progress) UpdateCapsuleProgress();
@@ -715,11 +720,14 @@ public partial class IslandWindow
         if (text == _capsuleLine) return;
         _capsuleLine = text;
         MiniLyric.Text = text;
+        MinLyric.Text = text;
         if (!animate) return;
         var dur = Dur(220);
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
         MiniLyric.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
         MiniLyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, dur) { EasingFunction = ease });
+        MinLyric.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = ease });
+        MinLyricShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(8, 0, dur) { EasingFunction = ease });
     }
 
     private static List<(string Text, bool Adlib)> SplitParts(string line)

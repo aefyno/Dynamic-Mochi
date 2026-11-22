@@ -249,6 +249,8 @@
   <data name="theme.green" xml:space="preserve"><value>Зелёная</value></data>
   <data name="theme.oled" xml:space="preserve"><value>OLED</value></data>
   <data name="theme.orange" xml:space="preserve"><value>Оранжевая</value></data>
+  <data name="theme.gray" xml:space="preserve"><value>Серая</value></data>
+  <data name="theme.pink" xml:space="preserve"><value>Розовая</value></data>
   <data name="theme.glass" xml:space="preserve"><value>Стекло</value></data>
   <data name="theme.red" xml:space="preserve"><value>Красная</value></data>
   <data name="theme.white" xml:space="preserve"><value>Белая</value></data>
@@ -352,4 +354,17 @@
   <data name="set.powertab.d" xml:space="preserve"><value>Сон, блокировка, гибернация, перезагрузка, выход и выключение прямо из острова.</value></data>
   <data name="set.dnd" xml:space="preserve"><value>Не беспокоить</value></data>
   <data name="set.dnd.d" xml:space="preserve"><value>Уведомления Telegram, Discord и скриншотов не всплывают. Напоминания и таймер работают.</value></data>
+  <data name="tab.clip" xml:space="preserve"><value>Буфер обмена</value></data>
+  <data name="clip.title" xml:space="preserve"><value>Буфер обмена</value></data>
+  <data name="clip.clear" xml:space="preserve"><value>Очистить</value></data>
+  <data name="clip.empty" xml:space="preserve"><value>Здесь появится всё, что ты копируешь. Нажми на запись, чтобы скопировать её снова.</value></data>
+  <data name="clip.copied" xml:space="preserve"><value>Скопировано</value></data>
+  <data name="clip.remove" xml:space="preserve"><value>Убрать</value></data>
+  <data name="clip.now" xml:space="preserve"><value>сейчас</value></data>
+  <data name="clip.yesterday" xml:space="preserve"><value>вчера</value></data>
+  <data name="set.clip" xml:space="preserve"><value>История буфера обмена</value></data>
+  <data name="set.clip.d" xml:space="preserve"><value>Вкладка с последними скопированными текстами. Хранится только на этом компьютере; копии из менеджеров паролей не сохраняются.</value></data>
+  <data name="set.clipsize" xml:space="preserve"><value>Сколько хранить</value></data>
+  <data name="set.clipsize.d" xml:space="preserve"><value>Последние записи в истории буфера обмена.</value></data>
+  <data name="set.clipsize.na" xml:space="preserve"><value>История буфера обмена выключена.</value></data>
 </root>

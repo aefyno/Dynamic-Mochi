@@ -11,7 +11,7 @@
     <AssemblyName>DynamicMochi</AssemblyName>
     <RootNamespace>DynamicMochi</RootNamespace>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>1.7.5</Version>
+    <Version>1.8.0</Version>
     <ApplicationIcon>Assets\mochi.ico</ApplicationIcon>
   </PropertyGroup>
 

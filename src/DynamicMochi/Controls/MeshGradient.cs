@@ -9,15 +9,15 @@ namespace DynamicMochi.Controls;
 /// <summary>
 /// v1.7.5: live gradient for the colour themes. Three soft blobs in shades of the theme colour drift slowly
 /// over the dark background and flow into each other (a "mesh" look). Positions are relative, so it fits
-/// the small capsule and the open island alike. Runs at 24 fps to keep the layered window cheap.
+/// the small capsule and the open island alike. v1.8: slower drift (16/21/26 s) at 30 fps: smooth and cheap.
 /// </summary>
 public sealed class MeshGradient : Grid
 {
     private static readonly (Point A, Point B, double Seconds, double Rx, double Ry)[] Paths =
     {
-        (new Point(0.12, 0.15), new Point(0.42, 0.95), 11, 0.55, 1.15),
-        (new Point(0.88, 0.05), new Point(0.62, 0.85), 14, 0.50, 1.05),
-        (new Point(0.55, 1.05), new Point(0.95, 0.45), 17, 0.60, 1.20),
+        (new Point(0.12, 0.15), new Point(0.42, 0.95), 16, 0.55, 1.15),
+        (new Point(0.88, 0.05), new Point(0.62, 0.85), 21, 0.50, 1.05),
+        (new Point(0.55, 1.05), new Point(0.95, 0.45), 26, 0.60, 1.20),
     };
 
     private readonly RadialGradientBrush[] _blobs = new RadialGradientBrush[Paths.Length];
@@ -72,7 +72,7 @@ public sealed class MeshGradient : Grid
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
             };
-            Timeline.SetDesiredFrameRate(anim, 24);
+            Timeline.SetDesiredFrameRate(anim, 30);
             b.BeginAnimation(RadialGradientBrush.CenterProperty, anim);
             b.BeginAnimation(RadialGradientBrush.GradientOriginProperty, anim);
         }

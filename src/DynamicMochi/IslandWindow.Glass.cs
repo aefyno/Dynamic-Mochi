@@ -126,7 +126,7 @@ public partial class IslandWindow
         if (!_glassOn || _glassTimer == null) return;
         var until = DateTime.UtcNow.AddMilliseconds(ms * Math.Max(1, _settings.AnimationSpeed) + 120);
         if (until > _glassFastUntil) _glassFastUntil = until;
-        _glassTimer.Interval = TimeSpan.FromMilliseconds(15);
+        // v1.8: no faster capture while animating — copying the screen every frame made the motion stutter
     }
 
     private void GlassTimer_Tick(object? sender, EventArgs e)
@@ -181,91 +181,62 @@ public partial class IslandWindow
         }
     }
 
-    // ================= Gooey motion
+    // ================= Motion
+    // v1.8: smooth, no wobble. The v1.7 springs (overshoot + settle) read as jerky on the tester's PC:
+    // every overshoot frame re-lays out the capsule. Now one calm ease-out per change, no second axis lag.
 
-    /// <summary>
-    /// Springy size change: one axis leads, the other follows a beat later, both overshoot and settle,
-    /// so the capsule stretches like a drop instead of scaling like a box. The overshoot is limited by the
-    /// room left in the window, so a tall page never gets cut at the bottom.
-    /// </summary>
+    private static readonly IEasingFunction Smooth = new CubicEase { EasingMode = EasingMode.EaseOut };
+    private static readonly IEasingFunction SmoothInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
+
+    /// <summary>Size change of the capsule: one smooth ease, width and height together.</summary>
     private void SpringSize(double w, double h, int ms, bool heightFirst)
     {
-        double fromW = Capsule.ActualWidth > 0 ? Capsule.ActualWidth : w;
-        double fromH = Capsule.ActualHeight > 0 ? Capsule.ActualHeight : h;
-        double room = BaseWindowH - IslandStack.Margin.Top - h - 6;
-        double dh = Math.Abs(h - fromH);
-        // v1.7.4: calmer — about half the v1.7.0 overshoot
-        double hOver = dh < 1 ? 0.05 : Math.Clamp(Math.Min(0.07, room / dh), 0.02, 0.07);
-        double wOver = Math.Clamp(Math.Min(0.05, (BaseWindowW - w - 8) / Math.Max(1, Math.Abs(w - fromW))), 0.02, 0.05);
-
-        var dur = Dur(ms);
-        var lag = Dur(45);
-        var wa = new DoubleAnimation(w, dur) { EasingFunction = SpringEase.WithOvershoot(wOver, 10), BeginTime = heightFirst ? lag : TimeSpan.Zero };
-        var ha = new DoubleAnimation(h, dur) { EasingFunction = SpringEase.WithOvershoot(hOver, 11), BeginTime = heightFirst ? TimeSpan.Zero : lag };
-        (heightFirst ? wa : ha).Completed += (_, _) => Repaint();
-        Capsule.BeginAnimation(FrameworkElement.WidthProperty, wa);
-        Capsule.BeginAnimation(FrameworkElement.HeightProperty, ha);
-        PumpGlass(ms + 60);
+        // expand 340 ms, collapse 300 ms, page switch 270 ms (the v1.7 callers pass the old, longer spring times)
+        int dur = Math.Clamp((int)(ms * 0.62), 220, 360);
+        AnimateSize(w, h, dur, heightFirst ? SmoothInOut : Smooth);
     }
 
-    /// <summary>Jelly wobble on a track change: wider and flatter for a moment, then it shivers back.</summary>
+    /// <summary>Track change: a short, gentle pulse (render transform only, no relayout).</summary>
     private void Jelly()
     {
-        double w = _expanded ? ExpandedW : CollapsedWidth;
-        double h = _expanded ? PageHeight(_page) : CollapsedSize.H;
-        var spring = new SpringEase(7.5, 17);
-        var wa = new DoubleAnimation(w * 1.035, w, Dur(520)) { EasingFunction = spring };
-        var ha = new DoubleAnimation(h * 0.95, h, Dur(520)) { EasingFunction = spring };
-        wa.Completed += (_, _) => Repaint();
-        Capsule.BeginAnimation(FrameworkElement.WidthProperty, wa);
-        Capsule.BeginAnimation(FrameworkElement.HeightProperty, ha);
-        PumpGlass(640);
+        var a = new DoubleAnimation(1.025, 1, Dur(320)) { EasingFunction = Smooth };
+        RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, a);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.985, 1, Dur(320)) { EasingFunction = Smooth });
+        PumpGlass(320);
     }
 
-    /// <summary>Hover anticipation: the capsule swells a little, like a drop about to split.</summary>
+    /// <summary>Hover anticipation: the capsule grows a little.</summary>
     private void Swell(double to, int ms)
     {
-        var a = new DoubleAnimation(to, Dur(ms)) { EasingFunction = new SpringEase(9, 14) };
+        var a = new DoubleAnimation(to, Dur(Math.Min(ms, 200))) { EasingFunction = Smooth };
         RootScale.BeginAnimation(ScaleTransform.ScaleXProperty, a);
-        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(to + (to - 1) * 0.3, Dur(ms)) { EasingFunction = new SpringEase(9, 14) });
-        PumpGlass(ms);
+        RootScale.BeginAnimation(ScaleTransform.ScaleYProperty, a);
+        PumpGlass(200);
     }
 
-    /// <summary>
-    /// The lyric strip leaves the capsule like a drop: it starts squeezed inside the capsule's bottom edge,
-    /// stretches down on a thinning neck, the neck snaps and the strip settles with a wobble.
-    /// Hiding runs it backwards: the strip is sucked back into the capsule.
-    /// </summary>
+    /// <summary>The lyric strip slides out from under the capsule and back in (no neck, no wobble).</summary>
     private void GooStrip(bool show)
     {
-        double up = -(StripHost.Margin.Top + Math.Max(18, LyricsStrip.ActualHeight * 0.6));
+        double up = -(StripHost.Margin.Top + Math.Max(12, LyricsStrip.ActualHeight * 0.4));
+        Neck.BeginAnimation(WidthProperty, null);
+        Neck.Width = 0;
         if (show)
         {
-            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.45, 1, Dur(560)) { EasingFunction = new SpringEase(7.5, 12) });
-            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.5, 1, Dur(560)) { EasingFunction = new SpringEase(7.5, 13), BeginTime = Dur(30) });
-            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, 0, Dur(540)) { EasingFunction = new SpringEase(8, 11) });
-            LyricsStrip.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Dur(160)) { BeginTime = Dur(40) });
-
-            var neck = new DoubleAnimationUsingKeyFrames();
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(0)));
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(52, Capsule.ActualWidth * 0.2), Dur(150), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(380), new CubicEase { EasingMode = EasingMode.EaseIn }));
-            Neck.BeginAnimation(WidthProperty, neck);
-            PumpGlass(680);
+            var d = Dur(300);
+            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.85, 1, d) { EasingFunction = Smooth });
+            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.85, 1, d) { EasingFunction = Smooth });
+            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, 0, d) { EasingFunction = Smooth });
+            LyricsStrip.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Dur(220)) { EasingFunction = Smooth });
+            PumpGlass(300);
         }
         else
         {
-            var ease = new BackEase { EasingMode = EasingMode.EaseIn, Amplitude = 0.35 };
-            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.3, Dur(260)) { EasingFunction = ease });
-            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.4, Dur(260)) { EasingFunction = ease });
-            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, Dur(260)) { EasingFunction = ease });
-
-            var neck = new DoubleAnimationUsingKeyFrames();
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(Math.Min(44, Capsule.ActualWidth * 0.16), Dur(140), new QuadraticEase { EasingMode = EasingMode.EaseOut }));
-            neck.KeyFrames.Add(new EasingDoubleKeyFrame(0, Dur(260)));
-            Neck.BeginAnimation(WidthProperty, neck);
-
-            var fade = new DoubleAnimation(0, Dur(110)) { BeginTime = Dur(150) };
+            var d = Dur(220);
+            var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+            StripScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.85, d) { EasingFunction = ease });
+            StripScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.85, d) { EasingFunction = ease });
+            StripShift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(up, d) { EasingFunction = ease });
+            var fade = new DoubleAnimation(0, d) { EasingFunction = ease };
             fade.Completed += (_, _) =>
             {
                 if (LyricsStrip.Opacity < 0.01)
@@ -278,7 +249,7 @@ public partial class IslandWindow
                 Repaint();
             };
             LyricsStrip.BeginAnimation(OpacityProperty, fade);
-            PumpGlass(300);
+            PumpGlass(220);
         }
     }
 }

@@ -249,6 +249,8 @@
   <data name="theme.green" xml:space="preserve"><value>Green</value></data>
   <data name="theme.oled" xml:space="preserve"><value>OLED</value></data>
   <data name="theme.orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="theme.gray" xml:space="preserve"><value>Gray</value></data>
+  <data name="theme.pink" xml:space="preserve"><value>Pink</value></data>
   <data name="theme.glass" xml:space="preserve"><value>Liquid Glass</value></data>
   <data name="theme.red" xml:space="preserve"><value>Red</value></data>
   <data name="theme.white" xml:space="preserve"><value>White</value></data>
@@ -352,4 +354,17 @@
   <data name="set.powertab.d" xml:space="preserve"><value>Sleep, lock, hibernate, restart, sign out and shut down right from the island.</value></data>
   <data name="set.dnd" xml:space="preserve"><value>Do not disturb</value></data>
   <data name="set.dnd.d" xml:space="preserve"><value>Telegram, Discord and screenshot notices stay quiet. Reminders and the timer still show.</value></data>
+  <data name="tab.clip" xml:space="preserve"><value>Clipboard</value></data>
+  <data name="clip.title" xml:space="preserve"><value>Clipboard</value></data>
+  <data name="clip.clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="clip.empty" xml:space="preserve"><value>Everything you copy shows up here. Click an entry to copy it again.</value></data>
+  <data name="clip.copied" xml:space="preserve"><value>Copied</value></data>
+  <data name="clip.remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="clip.now" xml:space="preserve"><value>now</value></data>
+  <data name="clip.yesterday" xml:space="preserve"><value>yesterday</value></data>
+  <data name="set.clip" xml:space="preserve"><value>Clipboard history</value></data>
+  <data name="set.clip.d" xml:space="preserve"><value>A tab with the texts you copied last. Kept on this PC only; copies from password managers are skipped.</value></data>
+  <data name="set.clipsize" xml:space="preserve"><value>How many to keep</value></data>
+  <data name="set.clipsize.d" xml:space="preserve"><value>Latest entries in the clipboard history.</value></data>
+  <data name="set.clipsize.na" xml:space="preserve"><value>Clipboard history is off.</value></data>
 </root>

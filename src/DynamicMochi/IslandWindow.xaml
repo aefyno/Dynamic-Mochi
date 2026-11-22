@@ -98,22 +98,32 @@
                                                    VerticalAlignment="Center" Typography.NumeralAlignment="Tabular"/>
                                     </StackPanel>
                                 </StackPanel>
-                                <Grid x:Name="MinPlayRow" Margin="7,0,18,0" Visibility="Collapsed">
+                                <!-- v1.8 resting player: art · title over the current lyric line (artist without lyrics) · equalizer -->
+                                <Grid x:Name="MinPlayRow" Margin="9,0,18,0" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border x:Name="MinArtBox" Width="34" Height="34" CornerRadius="17" VerticalAlignment="Center"
+                                    <Border x:Name="MinArtBox" Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
                                             Background="{DynamicResource SurfaceBrush}">
                                         <Border.Clip>
-                                            <RectangleGeometry Rect="0,0,34,34" RadiusX="17" RadiusY="17"/>
+                                            <RectangleGeometry Rect="0,0,42,42" RadiusX="12" RadiusY="12"/>
                                         </Border.Clip>
                                         <Image x:Name="MinArt" Stretch="UniformToFill"/>
                                     </Border>
-                                    <controls:MarqueeText x:Name="MinTitle" Grid.Column="1" Margin="12,0,12,0" FontSize="15" FontWeight="SemiBold"
-                                                          Height="20" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                                        <controls:MarqueeText x:Name="MinTitle" FontSize="14.5" FontWeight="SemiBold" Height="20"/>
+                                        <Grid x:Name="MinLyricBox" Height="18" ClipToBounds="True">
+                                            <TextBlock x:Name="MinLyric" FontSize="12.5" Foreground="{DynamicResource SubBrush}" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.RenderTransform>
+                                                    <TranslateTransform x:Name="MinLyricShift"/>
+                                                </TextBlock.RenderTransform>
+                                            </TextBlock>
+                                        </Grid>
+                                    </StackPanel>
                                     <TextBlock x:Name="MinMusicClock" Grid.Column="2" Margin="0,0,10,0" FontSize="14" FontWeight="SemiBold"
                                                Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource SubBrush}"
                                                FontFamily="{DynamicResource DisplayFont}" VerticalAlignment="Center"/>
@@ -258,6 +268,7 @@
                                             <Button x:Name="TabWeather" Style="{StaticResource TabButton}" ToolTip="{DynamicResource T.tab.weather}" Click="Tab_Click" Tag="weather">
                                                 <controls:WeatherIcon Icon="PartlySun" Mono="True" Width="19" Height="19"/>
                                             </Button>
+                                            <Button x:Name="TabClip" Style="{StaticResource TabButton}" Content="&#xE77F;" ToolTip="{DynamicResource T.tab.clip}" Click="Tab_Click" Tag="clipboard"/>
                                             <Button x:Name="TabPower" Style="{StaticResource TabButton}" Content="&#xE7E8;" ToolTip="{DynamicResource T.tab.power}" Click="Tab_Click" Tag="power"/>
                                             <Button x:Name="TabSettings" Style="{StaticResource TabButton}" Content="&#xE713;" ToolTip="{DynamicResource T.tab.settings}" Click="Tab_Click" Tag="settings"/>
                                         </StackPanel>
@@ -710,6 +721,33 @@
                                             <TranslateTransform/>
                                         </Grid.RenderTransform>
                                         <UniformGrid x:Name="PowerGrid" Columns="3" Rows="2"/>
+                                    </Grid>
+
+                                    <!-- ===== Clipboard history (v1.8) ===== -->
+                                    <Grid x:Name="ClipPage" Visibility="Collapsed" Opacity="0">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform/>
+                                        </Grid.RenderTransform>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Margin="2,0,0,10">
+                                            <TextBlock Text="{DynamicResource T.clip.title}" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <TextBlock x:Name="ClipCount" FontSize="12" Foreground="{DynamicResource FaintBrush}"
+                                                           Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                <Button x:Name="ClipClear" Style="{StaticResource FlatButton}" FontSize="12"
+                                                        Content="{DynamicResource T.clip.clear}" Click="ClipClear_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <ScrollViewer Grid.Row="1" Style="{StaticResource ThinScroll}" Margin="0,0,-8,0">
+                                            <StackPanel x:Name="ClipList" Margin="0,0,8,0"/>
+                                        </ScrollViewer>
+                                        <TextBlock x:Name="ClipEmpty" Grid.Row="1" Text="{DynamicResource T.clip.empty}" TextWrapping="Wrap"
+                                                   TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320"
+                                                   FontSize="13" Foreground="{DynamicResource FaintBrush}"/>
                                     </Grid>
 
                                     <!-- ===== Settings ===== -->
