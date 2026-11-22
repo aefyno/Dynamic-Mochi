@@ -31,7 +31,7 @@ public sealed class LiquidGlassEffect : ShaderEffect
     public static readonly DependencyProperty RadiusProperty = Register("Radius", typeof(double), 20.0, 1);
     public static readonly DependencyProperty RefractionProperty = Register("Refraction", typeof(double), 14.0, 2);
     public static readonly DependencyProperty BlurProperty = Register("Blur", typeof(double), 2.4, 3);
-    public static readonly DependencyProperty TintProperty = Register("Tint", typeof(Color), Color.FromArgb(41, 10, 10, 14), 4);
+    public static readonly DependencyProperty TintProperty = Register("Tint", typeof(Color), Color.FromArgb(64, 10, 10, 14), 4);
     public static readonly DependencyProperty BevelProperty = Register("Bevel", typeof(double), 16.0, 5);
     public static readonly DependencyProperty FlatTopProperty = Register("FlatTop", typeof(double), 0.0, 6);
     public static readonly DependencyProperty LightProperty = Register("Light", typeof(Point), new Point(-0.55, -0.83), 7);

@@ -42,8 +42,10 @@ public partial class IslandWindow
             EarLeft.Visibility = EarRight.Visibility = _settings.Shape == 1 ? Visibility.Visible : Visibility.Collapsed;
             return;
         }
-        // the notch's reverse corners are solid black, which reads wrong next to glass
-        EarLeft.Visibility = EarRight.Visibility = Visibility.Collapsed;
+        // v1.8.2: in the notch the reverse corners are glass too (filled from the same screen copy in UpdateGlassViews),
+        // so the sides flow into the top of the screen, collapsed and open alike
+        EarLeft.Visibility = EarRight.Visibility = _settings.Shape == 1 ? Visibility.Visible : Visibility.Collapsed;
+        _earBmp = null;
         // the strip is see-through: the glass behind it does the work
         StripTopStop.BeginAnimation(GradientStop.ColorProperty, null);
         StripEndStop.BeginAnimation(GradientStop.ColorProperty, null);
@@ -135,6 +137,18 @@ public partial class IslandWindow
 
     private bool _glassFollowing;
     private Int32Rect _glassArea;   // the screen area of the last copy: the whole island window
+    private System.Windows.Media.Imaging.BitmapSource? _earBmp;
+    private DrawingBrush? _earLeftFill, _earRightFill;
+
+    /// <summary>A notch corner made of glass: the screen copy under a dark tint (the shader is too heavy for 16 px).</summary>
+    private static DrawingBrush EarGlass(System.Windows.Media.Imaging.BitmapSource bmp)
+    {
+        var r = new Rect(0, 0, bmp.PixelWidth, bmp.PixelHeight);
+        var g = new DrawingGroup();
+        g.Children.Add(new ImageDrawing(bmp, r));
+        g.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromArgb(0x70, 10, 10, 14)), null, new RectangleGeometry(r)));
+        return new DrawingBrush(g) { Stretch = Stretch.Fill, ViewboxUnits = BrushMappingMode.RelativeToBoundingBox };
+    }
 
     private void GlassFollow(object? sender, EventArgs e)
     {
@@ -172,6 +186,19 @@ public partial class IslandWindow
             _capsuleBack.Viewbox = Relative(cap, _glassArea);
             if (_capsuleFx is LiquidGlassEffect cf)
                 cf.Shape(GlassBackdrop.ActualWidth, GlassBackdrop.ActualHeight, Capsule.CornerRadius.BottomLeft, _settings.Shape == 1);
+        }
+        if (_settings.Shape == 1 && _glass?.Bitmap is { } bmp)
+        {
+            if (!ReferenceEquals(bmp, _earBmp))
+            {
+                _earBmp = bmp;
+                _earLeftFill = EarGlass(bmp);
+                _earRightFill = EarGlass(bmp);
+                EarLeft.Fill = _earLeftFill;
+                EarRight.Fill = _earRightFill;
+            }
+            if (TryScreenRect(EarLeft, out var el)) _earLeftFill!.Viewbox = Relative(el, _glassArea);
+            if (TryScreenRect(EarRight, out var er)) _earRightFill!.Viewbox = Relative(er, _glassArea);
         }
         if (LyricsStrip.Visibility == Visibility.Visible && LyricsStrip.Opacity > 0.02 && TryScreenRect(StripShadowShape, out var str))
         {

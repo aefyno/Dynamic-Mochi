@@ -299,7 +299,8 @@ public partial class IslandWindow : Window
         Mesh.SetColors(
             MeshGradient.Shift(c0, 0, 0.04, 0.62),
             MeshGradient.Shift(c0, 10, 0.10, 0.40),
-            MeshGradient.Shift(c0, -7, 0.0, 0.45));
+            MeshGradient.Shift(c0, -7, 0.0, 0.45),
+            MeshGradient.Shift(c0, 4, 0.28, 0.22));   // a small, lighter highlight wandering through the middle
         // notch: black along the top edge, like the capsule's own gradient, so the corners and the bezel join seamlessly
         Mesh.OpacityMask = _settings.Shape == 1 ? NotchMask : null;
         Mesh.Visibility = Visibility.Visible;
@@ -318,8 +319,9 @@ public partial class IslandWindow : Window
             // glass floats: a soft dark shadow under it for depth, no coloured glow
             AnimateColor(GlowEffect, DropShadowEffect.ColorProperty, Colors.Black, dur);
             GlowEffect.BlurRadius = 26;
-            GlowEffect.ShadowDepth = 5;
-            AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, 0.5, dur);
+            GlowEffect.ShadowDepth = 4;
+            // notch: no shadow, it would draw a dark halo where the glass should melt into the screen edge
+            AnimateDouble(GlowEffect, DropShadowEffect.OpacityProperty, _settings.Shape == 1 ? 0 : 0.5, dur);
             StripShadow.Opacity = 0.4;
             return;
         }
@@ -383,10 +385,13 @@ public partial class IslandWindow : Window
         }
         // the shape behind the capsule carries the glow; its colour = the capsule edge, so no dark rim at the corners
         GlowShape.Background = new SolidColorBrush(t.Vertical || notch ? Colors.Black : Boosted(t.GradTop));
-        var ear = new SolidColorBrush(notch ? Colors.Black : t.GradTop);
-        ear.Freeze();
-        EarLeft.Fill = ear;
-        EarRight.Fill = ear;
+        if (!t.Glass)   // glass fills its corners from the screen copy (IslandWindow.Glass.cs)
+        {
+            var ear = new SolidColorBrush(notch ? Colors.Black : t.GradTop);
+            ear.Freeze();
+            EarLeft.Fill = ear;
+            EarRight.Fill = ear;
+        }
     }
 
     private static void AnimateColor(Animatable target, DependencyProperty prop, Color to, TimeSpan dur)
@@ -450,9 +455,10 @@ public partial class IslandWindow : Window
             O(BgEndStop, 1.0);
             return;
         }
-        P(LinearGradientBrush.StartPointProperty, expanded ? new Point(0, 0) : new Point(0, 0.5));
-        P(LinearGradientBrush.EndPointProperty, expanded ? new Point(1, 1) : new Point(1, 0.5));
-        O(BgMidStop, 0.55);
+        // v1.8.2: lit from the top with a slight slant (was corner to corner); the live gradient brings the movement
+        P(LinearGradientBrush.StartPointProperty, new Point(0.35, 0));
+        P(LinearGradientBrush.EndPointProperty, new Point(0.65, 1));
+        O(BgMidStop, expanded ? 0.6 : 0.65);
         O(BgEndStop, 1.0);
     }
 

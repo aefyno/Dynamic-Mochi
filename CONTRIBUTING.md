@@ -181,3 +181,8 @@ The log is at `%APPDATA%\DynamicMochi\log.txt`.
   - Glass: the copy now covers the whole island window (a fixed area) every ~33 ms, and only the crop into it follows the capsule and the strip, every frame while they move (`UpdateGlassViews` on `CompositionTarget.Rendering`, no screen copy per frame). Before, the copy covered only the capsule, and between two copies the old picture was squeezed into the new, smaller capsule, so the background seemed to jump.
   - Notch: reverse corners 16×12 with a long soft curve (were 8 px quarter circles); the black top fades out over 72 % of the height (was 55 %); the live gradient fades in from 12 % to 80 % of the height.
   - Not verified on hardware (CI build only).
+- **2026-11-22 (v1.8.2, by Etan):** tester: the sides should flow into the top of the screen (also when open), glass a bit darker, a more interesting gradient than corner to corner.
+  - Notch + glass: the reverse corners are visible again and made of glass (the same screen copy under a 44 % tint, `EarGlass`), the shader fades the rim out towards the top edge (`FlatTop`), and there is no drop shadow in the notch (it drew a dark halo at the screen edge). Works collapsed and open (the corners follow the capsule width).
+  - Glass tint 25 % (was 16 %), up to ~57 % over white.
+  - Base gradient of the colour themes: top-down with a slight slant (was horizontal / corner to corner). Live gradient: four blobs circling on their own slow orbits (24/27/31/37 s, two clockwise, two counter-clockwise; `PointAnimationUsingPath` on ellipses) instead of sliding back and forth; the fourth is a small lighter highlight.
+  - Not verified on hardware (CI build only).

@@ -63,6 +63,8 @@ float4 main(float2 uv : TEXCOORD) : COLOR
 
     // 0 in the flat middle → 1 at the very edge
     float t = saturate(1 + d / Bevel);
+    // notch: the rim fades out towards the top edge, so the sides melt into the screen edge (v1.8.2)
+    if (FlatTop > 0.5) t *= smoothstep(0, Bevel * 1.8, p.y + Size.y * 0.5);
     // round rim: the surface gets steeper towards the edge, so the bending does too
     float slope = t / sqrt(max(1 - t * t * 0.9, 0.1));
 
@@ -78,7 +80,7 @@ float4 main(float2 uv : TEXCOORD) : COLOR
 
     // light tint, stronger only over bright backgrounds so white text stays readable
     float l = dot(c.rgb, float3(0.299, 0.587, 0.114));
-    c.rgb = lerp(c.rgb, Tint.rgb, saturate(Tint.a + 0.28 * l));
+    c.rgb = lerp(c.rgb, Tint.rgb, saturate(Tint.a + 0.32 * l));   // v1.8.2: a touch darker
 
     // light lives only on the thin rim (no gloss stripe): brighter where it faces the light, a faint bounce opposite
     float key = saturate(dot(n, Light));

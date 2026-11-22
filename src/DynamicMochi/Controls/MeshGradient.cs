@@ -7,29 +7,33 @@ using System.Windows.Shapes;
 namespace DynamicMochi.Controls;
 
 /// <summary>
-/// v1.7.5: live gradient for the colour themes. Three soft blobs in shades of the theme colour drift slowly
+/// v1.7.5: live gradient for the colour themes. Soft blobs in shades of the theme colour drift slowly
 /// over the dark background and flow into each other (a "mesh" look). Positions are relative, so it fits
 /// the small capsule and the open island alike. v1.8: slower drift (16/21/26 s) at 30 fps: smooth and cheap.
 /// </summary>
 public sealed class MeshGradient : Grid
 {
-    private static readonly (Point A, Point B, double Seconds, double Rx, double Ry)[] Paths =
+    // v1.8.2: four blobs that circle on their own slow orbits (not back and forth along a line),
+    // so the colour wanders around the island instead of sliding from corner to corner.
+    private static readonly (Point Center, double Ox, double Oy, double Seconds, bool Clockwise, double Rx, double Ry)[] Orbits =
     {
-        (new Point(0.12, 0.15), new Point(0.42, 0.95), 16, 0.55, 1.15),
-        (new Point(0.88, 0.05), new Point(0.62, 0.85), 21, 0.50, 1.05),
-        (new Point(0.55, 1.05), new Point(0.95, 0.45), 26, 0.60, 1.20),
+        (new Point(0.25, 0.35), 0.20, 0.30, 24, true, 0.55, 1.10),
+        (new Point(0.78, 0.30), 0.18, 0.34, 31, false, 0.50, 1.00),
+        (new Point(0.50, 0.90), 0.30, 0.18, 27, true, 0.60, 1.10),
+        (new Point(0.62, 0.55), 0.24, 0.24, 37, false, 0.34, 0.70),
     };
 
-    private readonly RadialGradientBrush[] _blobs = new RadialGradientBrush[Paths.Length];
+    private readonly RadialGradientBrush[] _blobs = new RadialGradientBrush[Orbits.Length];
     private bool _running;
 
     public MeshGradient()
     {
         IsHitTestVisible = false;
-        for (int i = 0; i < Paths.Length; i++)
+        for (int i = 0; i < Orbits.Length; i++)
         {
-            var p = Paths[i];
-            var b = new RadialGradientBrush { RadiusX = p.Rx, RadiusY = p.Ry, Center = p.A, GradientOrigin = p.A };
+            var o = Orbits[i];
+            var start = new Point(o.Center.X + o.Ox, o.Center.Y);
+            var b = new RadialGradientBrush { RadiusX = o.Rx, RadiusY = o.Ry, Center = start, GradientOrigin = start };
             b.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
             b.GradientStops.Add(new GradientStop(Colors.Transparent, 0.55));
             b.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
@@ -38,7 +42,7 @@ public sealed class MeshGradient : Grid
         }
     }
 
-    /// <summary>Blob colours (alpha = strength).</summary>
+    /// <summary>Blob colours (alpha = strength); fewer colours than blobs repeat the last one.</summary>
     public void SetColors(params Color[] colors)
     {
         for (int i = 0; i < _blobs.Length; i++)
@@ -65,12 +69,15 @@ public sealed class MeshGradient : Grid
                 b.BeginAnimation(RadialGradientBrush.GradientOriginProperty, null);
                 continue;
             }
-            var p = Paths[i];
-            var anim = new PointAnimation(p.A, p.B, TimeSpan.FromSeconds(p.Seconds))
+            var o = Orbits[i];
+            var path = PathGeometry.CreateFromGeometry(new EllipseGeometry(o.Center, o.Ox, o.Oy));
+            if (!o.Clockwise) path.Transform = new ScaleTransform(-1, 1, o.Center.X, o.Center.Y);
+            path.Freeze();
+            var anim = new PointAnimationUsingPath
             {
-                AutoReverse = true,
+                PathGeometry = path,
+                Duration = TimeSpan.FromSeconds(o.Seconds),
                 RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
             };
             Timeline.SetDesiredFrameRate(anim, 30);
             b.BeginAnimation(RadialGradientBrush.CenterProperty, anim);
